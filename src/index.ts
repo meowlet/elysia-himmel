@@ -1,15 +1,10 @@
 import { Elysia } from "elysia";
-import mongoDatabase from "./database/Database";
 import { Constant } from "./util/Constant";
-
-const db = mongoDatabase.getDatabase();
+import { Database } from "./database/Database";
 
 const app = new Elysia()
-  .get("/", () => {
-    const userQuery = db.collection("fictions").find({});
-    return userQuery.toArray();
-  })
+  .use(Database)
+  .get("/", () => "Hello, world!")
   .listen(3000);
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
-);
+
+console.log("The app should be running on http://localhost:3000");

@@ -1,5 +1,6 @@
 import { Db, MongoClient } from "mongodb";
 import { Constant } from "../util/Constant";
+import Elysia from "elysia";
 
 export class MongoDatabase {
   private static instance: MongoDatabase;
@@ -43,4 +44,7 @@ export class MongoDatabase {
 
 await MongoDatabase.getInstance().connect(Constant.DATABASE_PATH);
 
-export default MongoDatabase.getInstance();
+export const Database = new Elysia().decorate(
+  "db",
+  MongoDatabase.getInstance().getDatabase()
+);
