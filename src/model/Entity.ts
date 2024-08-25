@@ -15,6 +15,7 @@ enum NotificationType {
 // User interface
 interface User {
   username: string;
+  fullName?: string;
   email: string;
   passwordHash: string;
   isPremium: boolean;
