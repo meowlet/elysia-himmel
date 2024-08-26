@@ -1,8 +1,3 @@
-export interface ErrorResponse {
-  status: number;
-  message: string;
-}
-
 export class ForbiddenError extends Error {
   constructor(message = "Forbidden") {
     super(message);
