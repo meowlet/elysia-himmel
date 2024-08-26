@@ -45,6 +45,6 @@ export class MongoDatabase {
 await MongoDatabase.getInstance().connect(Constant.DATABASE_PATH);
 
 export const Database = new Elysia().decorate(
-  "db",
+  "database",
   MongoDatabase.getInstance().getDatabase()
 );
