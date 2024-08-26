@@ -1,3 +1,5 @@
+import { Action, Resource } from "../util/Enum";
+
 // Enums
 enum WorkType {
   COMIC = "comic",
@@ -24,6 +26,17 @@ interface User {
   createdAt: Date;
   updatedAt: Date;
   bio?: string;
+  role?: string; // Reference to Role._id
+}
+
+// Role interface
+interface Role {
+  name: string;
+  description?: string;
+  permissions: {
+    resource: Resource;
+    actions: Action[];
+  }[]; // Array of resource-action pairs
 }
 
 // Work interface
@@ -114,3 +127,18 @@ interface Follow {
   followedId: string; // Reference to User._id
   createdAt: Date;
 }
+
+// Export all interfaces
+export {
+  User,
+  Role,
+  Work,
+  Chapter,
+  Tag,
+  Rating,
+  Comment,
+  Forum,
+  Post,
+  Notification,
+  Follow,
+};
