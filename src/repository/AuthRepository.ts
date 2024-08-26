@@ -1,12 +1,15 @@
 import { Db } from "mongodb";
 import bcrypt from "bcryptjs";
 import { Constant } from "../util/Constant";
+import { User } from "../model/Entity";
+import { AuthService } from "../service/AuthService";
+import { ConflictError } from "../util/Error";
 
 export class AuthRepository {
   private database: Db;
 
-  constructor(db: Db) {
-    this.database = db;
+  constructor(database: Db) {
+    this.database = database;
   }
 
   public async signup(
@@ -25,7 +28,14 @@ export class AuthRepository {
       updatedAt: new Date(),
       bio: undefined,
     };
-    await this.database.collection("users").insertOne(newUser);
+    await this.database
+      .collection("users")
+      .insertOne(newUser)
+      .catch((err) => {
+        if (err.code === 11000) {
+          throw new ConflictError("User already exists");
+        }
+      });
   }
 }
 
