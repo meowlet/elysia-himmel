@@ -3,7 +3,8 @@ import bcrypt from "bcryptjs";
 import { Constant } from "../util/Constant";
 import { User } from "../model/Entity";
 import { AuthService } from "../service/AuthService";
-import { ConflictError } from "../util/Error";
+import { AuthorizationError, ConflictError } from "../util/Error";
+import { AuthorizationErrorType } from "../util/Enum";
 
 export class AuthRepository {
   private database: Db;
@@ -12,7 +13,7 @@ export class AuthRepository {
     this.database = database;
   }
 
-  public async signup(
+  public async signUp(
     username: string,
     email: string,
     password: string
@@ -37,9 +38,42 @@ export class AuthRepository {
         }
       });
   }
+
+  public async signIn(identifier: string, password: string): Promise<User> {
+    const existingUser = await this.database.collection<User>("users").findOne({
+      $or: [{ username: identifier }, { email: identifier }],
+    });
+
+    if (!existingUser) {
+      throw new AuthorizationError(
+        "User not found",
+        AuthorizationErrorType.USER_NOT_FOUND
+      );
+    }
+
+    const isPasswordCorrect = await comparePassword(
+      password,
+      existingUser.passwordHash
+    );
+
+    if (!isPasswordCorrect) {
+      throw new AuthorizationError(
+        "Password does not match",
+        AuthorizationErrorType.INVALID_CREDENTIALS
+      );
+    }
+    return existingUser;
+  }
 }
 
 async function hashPassword(password: string): Promise<string> {
   const salt = await bcrypt.genSalt(Constant.SALT);
   return bcrypt.hash(password, salt);
+}
+
+async function comparePassword(
+  password: string,
+  hash: string
+): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }

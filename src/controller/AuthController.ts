@@ -8,6 +8,7 @@ import {
   validatePassword,
   validateUsername,
 } from "../util/InputValidator";
+import { User } from "../model/Entity";
 
 export const AuthController = new Elysia()
   .use(AuthModel)
@@ -19,38 +20,8 @@ export const AuthController = new Elysia()
   })
   .post(
     "/signup",
-    async ({ body, authRepository, set }) => {
-      const emailResult = validateEmail(body.email);
-      if (!emailResult.isValid) {
-        set.status = 400;
-        return createErrorResponse(
-          "Invalid email",
-          "VALIDATION",
-          emailResult.error || "Invalid email"
-        );
-      }
-
-      const usernameResult = validateUsername(body.username);
-      if (!usernameResult.isValid) {
-        set.status = 400;
-        return createErrorResponse(
-          "Invalid username",
-          "VALIDATION",
-          usernameResult.error || "Invalid usernamme"
-        );
-      }
-
-      const passwordResult = validatePassword(body.password);
-      if (!passwordResult.isValid) {
-        set.status = 400;
-        return createErrorResponse(
-          "Invalid password",
-          "VALIDATION",
-          passwordResult.error || "Invalid password"
-        );
-      }
-
-      await authRepository.signup(body.email, body.username, body.password);
+    async ({ body, authRepository }) => {
+      await authRepository.signUp(body.email, body.username, body.password);
       return createSuccessResponse<any>(
         "User signed up successfully",
         undefined
@@ -58,5 +29,15 @@ export const AuthController = new Elysia()
     },
     {
       body: "signUp",
+    }
+  )
+  .post(
+    "/signin",
+    async ({ body, authRepository, set }) => {
+      const user = await authRepository.signIn(body.identifier, body.password);
+      return createSuccessResponse<User>("User signed in successfully", user);
+    },
+    {
+      body: "signIn",
     }
   );
