@@ -9,6 +9,7 @@ interface ErrorResponse {
   message: string;
   error: {
     code: string;
+    type: string;
     details: string;
   };
 }
@@ -27,6 +28,7 @@ function createSuccessResponse<T>(
 function createErrorResponse(
   message: string,
   code: string,
+  type: string,
   details: string
 ): ErrorResponse {
   return {
@@ -34,6 +36,7 @@ function createErrorResponse(
     message,
     error: {
       code,
+      type,
       details: details || message,
     },
   };

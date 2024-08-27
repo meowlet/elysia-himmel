@@ -15,6 +15,7 @@ export const ErrorPlugin = new Elysia()
         return createErrorResponse(
           "Conflict. The request could not be completed due to a conflict.",
           "CONFLICT",
+          error.type,
           error.message
         );
       }
@@ -23,6 +24,7 @@ export const ErrorPlugin = new Elysia()
         return createErrorResponse(
           "Forbidden. You don't have permission to access this resource.",
           "FORBIDDEN",
+          error.type,
           error.message
         );
       }
@@ -31,6 +33,7 @@ export const ErrorPlugin = new Elysia()
         return createErrorResponse(
           "Authorization error. You are not authorized to access this resource.",
           "UNAUTHORIZED",
+          error.type,
           error.message
         );
       }
@@ -39,30 +42,35 @@ export const ErrorPlugin = new Elysia()
         return createErrorResponse(
           "Not found. The requested resource could not be found.",
           "NOT_FOUND",
+          "NOT_FOUND",
           error.message
         );
       }
       case "VALIDATION": {
         set.status = 400;
-        const parsedError = JSON.parse(error.message);
-        const propertyDetails = Object.entries(
-          parsedError.errors[0].schema.properties
-        )
-          .map(([key, value]) => {
-            return `${key} as ${(value as any).type}`;
-          })
-          .join(", ");
-        return createErrorResponse(
-          "Validation error. The request could not be completed due to validation errors.",
-          "VALIDATION",
-          `Expected properties: ${propertyDetails}`
-        );
+        try {
+          const parsedError = JSON.parse(error.message);
+          return createErrorResponse(
+            "Validation error. The request could not be completed due to validation errors.",
+            "VALIDATION",
+            "VALIDATION_ERROR",
+            parsedError.summary
+          );
+        } catch (err) {
+          return createErrorResponse(
+            "Validation error. The request could not be completed due to validation errors.",
+            "VALIDATION",
+            "VALIDATION_ERROR",
+            error.message
+          );
+        }
       }
       case "PARSE": {
         set.status = 422;
         return createErrorResponse(
           "Invalid request. The server could not understand the request due to invalid syntax.",
           "UNPROCESSABLE_ENTITY",
+          "PARSE_ERROR",
           error.message
         );
       }
@@ -71,6 +79,7 @@ export const ErrorPlugin = new Elysia()
         return createErrorResponse(
           "Unknown error. An unexpected error occurred.",
           "UNKNOWN_ERROR",
+          "UNKNOWN_ERROR",
           error.message
         );
       }
@@ -78,6 +87,7 @@ export const ErrorPlugin = new Elysia()
         set.status = 500;
         return createErrorResponse(
           "Internal server error. An unexpected error occurred on the server.",
+          "INTERNAL_SERVER_ERROR",
           "INTERNAL_SERVER_ERROR",
           error.message
         );
