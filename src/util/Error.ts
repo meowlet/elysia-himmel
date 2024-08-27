@@ -1,17 +1,40 @@
-export class ForbiddenError extends Error {
-  constructor(message = "Forbidden") {
+import {
+  AuthorizationErrorType,
+  ForbiddenErrorType,
+  ConflictErrorType,
+} from "./Enum";
+
+export class CustomError extends Error {
+  constructor(public message: string, public type: string) {
     super(message);
+    this.name = this.constructor.name;
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
-export class ConflictError extends Error {
-  constructor(message = "Validation Error") {
-    super(message);
+export class AuthorizationError extends CustomError {
+  constructor(
+    message: string = "Authorization Error",
+    type: AuthorizationErrorType = AuthorizationErrorType.INVALID_CREDENTIALS
+  ) {
+    super(message, type);
   }
 }
 
-export class AuthorizationError extends Error {
-  constructor(message = "Authorization Error") {
-    super(message);
+export class ForbiddenError extends CustomError {
+  constructor(
+    message: string = "Forbidden",
+    type: ForbiddenErrorType = ForbiddenErrorType.ACCESS_DENIED
+  ) {
+    super(message, type);
+  }
+}
+
+export class ConflictError extends CustomError {
+  constructor(
+    message: string = "Conflict Error",
+    type: ConflictErrorType = ConflictErrorType.VALIDATION_ERROR
+  ) {
+    super(message, type);
   }
 }
