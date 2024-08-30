@@ -1,11 +1,11 @@
 import Elysia, { t } from "elysia";
 
 export const AuthModel = new Elysia().model({
-  signIn: t.Object({
+  SignInBody: t.Object({
     identifier: t.String(),
     password: t.String(),
   }),
-  signUp: t.Object({
+  SignUpBody: t.Object({
     email: t.String({
       format: "email",
       error: "Invalid email format",
