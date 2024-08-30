@@ -4,5 +4,5 @@ import { AuthController } from "./controller/AuthController";
 import { AuthPlugin } from "./plugin/AuthPlugin";
 
 export const Application = new Elysia()
-  .group("/user", (app) => app.use(UserController))
+  .group("/user", (app) => app.use(AuthPlugin).get("/", ""))
   .group("/auth", (app) => app.use(AuthController));
