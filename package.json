@@ -7,8 +7,6 @@
   },
   "dependencies": {
     "@elysiajs/jwt": "^1.1.0",
-    "@types/bcryptjs": "^2.4.6",
-    "bcryptjs": "^2.4.3",
     "elysia": "latest",
     "mongodb": "^6.8.0"
   },
