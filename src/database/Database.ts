@@ -9,7 +9,7 @@ export class MongoDatabase {
   private database: Db | null = null;
 
   private constructor() {
-    this.mongoDBUri = process.env.MONGODB_URI || "mongodb://localhost:27017";
+    this.mongoDBUri = Bun.env.MONGODB_URI || "mongodb://localhost:27017";
   }
 
   public static getInstance(): MongoDatabase {

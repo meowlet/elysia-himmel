@@ -2,22 +2,48 @@ import { Db, ObjectId } from "mongodb";
 import { Action, Resource } from "../util/Enum";
 
 export class AuthService {
+  private _database: Db | null;
+  private _userId: string | null;
+
+  constructor() {
+    this._database = null;
+    this._userId = null;
+  }
+
   set database(database: Db) {
-    this.database = database;
+    this._database = database;
+  }
+
+  get database(): Db {
+    if (!this._database) {
+      throw new Error("Database has not been initialized");
+    }
+    return this._database;
   }
 
   set userId(userId: string) {
-    this.userId = userId;
+    this._userId = userId;
+  }
+
+  get userId(): string {
+    if (!this._userId) {
+      throw new Error("UserId has not been set");
+    }
+    return this._userId;
   }
 
   public async managerHasPermission(
     resource: Resource,
     action: Action
   ): Promise<boolean> {
-    const result = await this.database
+    if (!this._database || !this._userId) {
+      throw new Error("Database or UserId not initialized");
+    }
+
+    const result = await this._database
       .collection("users")
       .aggregate([
-        { $match: { _id: new ObjectId(this.userId) } },
+        { $match: { _id: new ObjectId(this._userId) } },
         {
           $lookup: {
             from: "roles",
@@ -36,7 +62,6 @@ export class AuthService {
     }
 
     const permissions = result[0].role.permissions;
-
     return permissions.some(
       (permission: { resource: Resource; actions: Action[] }) =>
         permission.resource === resource && permission.actions.includes(action)

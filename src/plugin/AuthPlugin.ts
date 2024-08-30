@@ -11,29 +11,50 @@ export const AuthPlugin = new Elysia()
   .use(
     jwt({
       name: "jwt",
-      secret: process.env.JWT_SECRET || "The ultimate secret",
+      secret: Bun.env.JWT_SECRET || "The ultimate secret",
     })
   )
-  .derive({ as: "global" }, async ({ headers, jwt, database }) => {
-    const token = headers["Authorization"]?.replace("Bearer ", "");
-    if (!token) {
-      throw new AuthorizationError(
-        "Token not found",
-        AuthorizationErrorType.INVALID_TOKEN
-      );
-    }
+  .derive(
+    { as: "global" },
+    async ({ headers, jwt, database, cookie: { accessToken } }) => {
+      let finalAcessToken: string | undefined;
+      if (accessToken) {
+        finalAcessToken = accessToken.value;
+      }
 
-    const decodedToken = await jwt.verify(token);
-    if (!decodedToken) {
-      throw new AuthorizationError(
-        "Invalid token",
-        AuthorizationErrorType.INVALID_TOKEN
-      );
-    } else {
+      console.log(accessToken.value);
+
+      if (!finalAcessToken) {
+        const authorization = headers["Authorization"];
+        if (authorization && authorization.startsWith("Bearer ")) {
+          finalAcessToken = authorization.substring(7);
+        }
+      }
+
+      if (!finalAcessToken) {
+        throw new AuthorizationError(
+          "No token provided",
+          AuthorizationErrorType.NO_TOKEN_PROVIDED
+        );
+      }
+
+      const payload = await jwt.verify(finalAcessToken);
+
+      if (!payload) {
+        throw new AuthorizationError(
+          "Invalid token",
+          AuthorizationErrorType.INVALID_TOKEN
+        );
+      }
+
       const authService = new AuthService();
-      authService.userId = decodedToken.userId as string;
+      authService.userId = payload.sub as string;
       authService.database = database;
 
-      return {};
+      return {
+        user: {
+          _id: payload.sub,
+        },
+      };
     }
-  });
+  );
