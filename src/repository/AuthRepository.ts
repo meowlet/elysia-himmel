@@ -1,4 +1,4 @@
-import { Db } from "mongodb";
+import { Db, ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
 import { Constant } from "../util/Constant";
 import { User } from "../model/Entity";
@@ -21,7 +21,10 @@ export class AuthRepository {
     const newUser: User = {
       username: username,
       email: email,
-      passwordHash: await hashPassword(password),
+      passwordHash: await Bun.password.hash(password, {
+        algorithm: "bcrypt",
+        cost: Constant.SALT,
+      }),
       isPremium: false,
       premiumExpiryDate: undefined,
       favoriteTags: [],
@@ -30,7 +33,7 @@ export class AuthRepository {
       bio: undefined,
     };
     await this.database
-      .collection("users")
+      .collection(Constant.USER_COLLECTION)
       .insertOne(newUser)
       .catch((err) => {
         if (err.code === 11000) {
@@ -40,9 +43,11 @@ export class AuthRepository {
   }
 
   public async signIn(identifier: string, password: string): Promise<User> {
-    const existingUser = await this.database.collection<User>("users").findOne({
-      $or: [{ username: identifier }, { email: identifier }],
-    });
+    const existingUser = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne({
+        $or: [{ username: identifier }, { email: identifier }],
+      });
 
     if (!existingUser) {
       throw new AuthorizationError(
@@ -51,7 +56,7 @@ export class AuthRepository {
       );
     }
 
-    const isPasswordCorrect = await comparePassword(
+    const isPasswordCorrect = await Bun.password.verify(
       password,
       existingUser.passwordHash
     );
@@ -64,16 +69,52 @@ export class AuthRepository {
     }
     return existingUser;
   }
+
+  public async checkUserExists(userId: string): Promise<boolean> {
+    const user = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne({
+        _id: new ObjectId(userId),
+      });
+
+    return !!user;
+  }
+
+  public async updateRefreshToken(userId: string, refreshToken: string) {
+    await this.database.collection<User>(Constant.USER_COLLECTION).updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          data: {
+            refreshToken: refreshToken,
+          },
+        },
+      }
+    );
+  }
+  async removeRefreshToken(userId: string) {
+    console.log(userId);
+    await this.database.collection<User>(Constant.USER_COLLECTION).updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          data: {
+            refreshToken: null,
+          },
+        },
+      }
+    );
+  }
 }
 
-async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(Constant.SALT);
-  return bcrypt.hash(password, salt);
-}
+// async function hashPassword(password: string): Promise<string> {
+//   const salt = await bcrypt.genSalt(Constant.SALT);
+//   return bcrypt.hash(password, salt);
+// }
 
-async function comparePassword(
-  password: string,
-  hash: string
-): Promise<boolean> {
-  return bcrypt.compare(password, hash);
-}
+// async function comparePassword(
+//   password: string,
+//   hash: string
+// ): Promise<boolean> {
+//   return bcrypt.compare(password, hash);
+// }
