@@ -4,7 +4,9 @@ import { Constant } from "../util/Constant";
 import { User } from "../model/Entity";
 import { AuthService } from "../service/AuthService";
 import { AuthorizationError, ConflictError } from "../util/Error";
-import { AuthorizationErrorType } from "../util/Enum";
+import { AuthorizationErrorType, ConflictErrorType } from "../util/Enum";
+import EmailService from "../service/EmailService";
+import { randomBytes } from "crypto";
 
 export class AuthRepository {
   private database: Db;
@@ -37,7 +39,10 @@ export class AuthRepository {
       .insertOne(newUser)
       .catch((err) => {
         if (err.code === 11000) {
-          throw new ConflictError("User already exists");
+          throw new ConflictError(
+            "User already exists",
+            ConflictErrorType.DUPLICATE_ENTRY
+          );
         }
       });
   }
@@ -92,6 +97,7 @@ export class AuthRepository {
       }
     );
   }
+
   async removeRefreshToken(userId: string) {
     console.log(userId);
     await this.database.collection<User>(Constant.USER_COLLECTION).updateOne(
@@ -101,6 +107,127 @@ export class AuthRepository {
           data: {
             refreshToken: null,
           },
+        },
+      }
+    );
+  }
+
+  public async alterUserPassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
+    const user = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne({ _id: new ObjectId(userId) });
+
+    if (!user) {
+      throw new AuthorizationError(
+        "User not found",
+        AuthorizationErrorType.USER_NOT_FOUND
+      );
+    }
+
+    const isPasswordCorrect = await Bun.password.verify(
+      currentPassword,
+      user.passwordHash
+    );
+
+    if (!isPasswordCorrect) {
+      throw new AuthorizationError(
+        "Current password is incorrect",
+        AuthorizationErrorType.INVALID_CREDENTIALS
+      );
+    }
+
+    const newPasswordHash = await Bun.password.hash(newPassword, {
+      algorithm: "bcrypt",
+      cost: Constant.SALT,
+    });
+
+    await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: { passwordHash: newPasswordHash, updatedAt: new Date() } }
+      );
+
+    // Send email to user
+    new EmailService().sendMail({
+      from: "Meow <mercury.meowsica.me>",
+      to: user.email,
+      subject: "Password changed",
+      text: "Your password has been changed.",
+      html: "<p>Your password has been changed.</p>",
+    });
+  }
+
+  public async createPasswordResetToken(email: string): Promise<void> {
+    const user = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne({ email: email });
+
+    if (!user) {
+      throw new AuthorizationError(
+        "User not found",
+        AuthorizationErrorType.USER_NOT_FOUND
+      );
+    }
+
+    const resetToken = randomBytes(32).toString("hex");
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+    const resetUrl = `${Constant.FE_URL}/reset-password/${resetToken}`;
+
+    await this.database.collection<User>(Constant.USER_COLLECTION).updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          passwordResetToken: resetToken,
+          passwordResetExpires: resetTokenExpiry,
+        },
+      }
+    );
+
+    new EmailService().sendMail({
+      from: "Meow <mercury.meowsica.me>",
+      to: email,
+      subject: "Password Reset Request",
+      text: `To reset your password, click on this link: ${resetUrl}`,
+      html: `<p>To reset your password, click on this link: <a href="${resetUrl}">${resetUrl}</a></p>`,
+    });
+  }
+
+  public async resetPassword(
+    token: string,
+    newPassword: string
+  ): Promise<void> {
+    const user = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne({
+        passwordResetToken: token,
+        passwordResetExpires: { $gt: new Date() },
+      });
+
+    if (!user) {
+      throw new AuthorizationError(
+        "Invalid or expired password reset token",
+        AuthorizationErrorType.INVALID_TOKEN
+      );
+    }
+
+    const newPasswordHash = await Bun.password.hash(newPassword, {
+      algorithm: "bcrypt",
+      cost: Constant.SALT,
+    });
+
+    await this.database.collection<User>(Constant.USER_COLLECTION).updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          passwordHash: newPasswordHash,
+          passwordResetToken: null,
+          passwordResetExpires: null,
         },
       }
     );
