@@ -14,47 +14,33 @@ export const AuthPlugin = new Elysia()
       secret: Bun.env.JWT_SECRET || "The ultimate secret",
     })
   )
-  .derive(
-    { as: "global" },
-    async ({ headers, jwt, database, cookie: { accessToken } }) => {
-      let finalAcessToken: string | undefined;
-      if (accessToken) {
-        finalAcessToken = accessToken.value;
-      }
+  .derive({ as: "global" }, async ({ headers, jwt, database, cookie }) => {
+    const accessToken =
+      cookie.refreshToken?.value || headers.authorization?.substring(7);
 
-      console.log(accessToken.value);
-
-      if (!finalAcessToken) {
-        const authorization = headers["Authorization"];
-        if (authorization && authorization.startsWith("Bearer ")) {
-          finalAcessToken = authorization.substring(7);
-        }
-      }
-
-      if (!finalAcessToken) {
-        throw new AuthorizationError(
-          "No token provided",
-          AuthorizationErrorType.NO_TOKEN_PROVIDED
-        );
-      }
-
-      const payload = await jwt.verify(finalAcessToken);
-
-      if (!payload) {
-        throw new AuthorizationError(
-          "Invalid token",
-          AuthorizationErrorType.INVALID_TOKEN
-        );
-      }
-
-      const authService = new AuthService();
-      authService.userId = payload.sub as string;
-      authService.database = database;
-
-      return {
-        user: {
-          _id: payload.sub,
-        },
-      };
+    if (!accessToken) {
+      throw new AuthorizationError(
+        "No token provided",
+        AuthorizationErrorType.NO_TOKEN_PROVIDED
+      );
     }
-  );
+
+    const payload = await jwt.verify(accessToken);
+
+    if (!payload) {
+      throw new AuthorizationError(
+        "Invalid token",
+        AuthorizationErrorType.INVALID_TOKEN
+      );
+    }
+
+    const authService = new AuthService();
+    authService.userId = payload.sub as string;
+    authService.database = database;
+
+    return {
+      user: {
+        _id: payload.sub,
+      },
+    };
+  });
