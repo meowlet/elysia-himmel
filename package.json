@@ -7,8 +7,10 @@
   },
   "dependencies": {
     "@elysiajs/jwt": "^1.1.0",
+    "@types/nodemailer": "^6.4.15",
     "elysia": "latest",
-    "mongodb": "^6.8.0"
+    "mongodb": "^6.8.0",
+    "nodemailer": "^6.9.15"
   },
   "devDependencies": {
     "bun-types": "latest"
