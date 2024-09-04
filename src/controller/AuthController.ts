@@ -16,7 +16,7 @@ export const AuthController = new Elysia()
     jwt({
       name: "accessJwt",
       secret: Bun.env.JWT_SECRET || "The ultimate secret",
-      exp: Constant.ACESS_TOKEN_EXPIRY,
+      exp: Constant.ACCESS_TOKEN_EXPIRY,
     })
   )
   .use(
@@ -32,9 +32,9 @@ export const AuthController = new Elysia()
     };
   })
   .post(
-    "/signup",
+    "/sign-up",
     async ({ body, authRepository }) => {
-      await authRepository.signUp(body.email, body.username, body.password);
+      await authRepository.signUp(body.username, body.email, body.password);
       return createSuccessResponse<void>(
         "User signed up successfully",
         undefined
@@ -45,7 +45,7 @@ export const AuthController = new Elysia()
     }
   )
   .post(
-    "/signin",
+    "/sign-in",
     async ({ body, authRepository, accessJwt, refreshJwt, cookie }) => {
       const user = await authRepository.signIn(body.identifier, body.password);
 
@@ -57,7 +57,7 @@ export const AuthController = new Elysia()
         httpOnly: true,
         secure: true,
         sameSite: "strict",
-        maxAge: Constant.ACESS_TOKEN_EXPIRY_MS,
+        maxAge: Constant.ACCESS_TOKEN_EXPIRY_MS,
         path: "/",
       });
 
@@ -120,7 +120,7 @@ export const AuthController = new Elysia()
         httpOnly: true,
         secure: true,
         sameSite: "strict",
-        maxAge: Constant.ACESS_TOKEN_EXPIRY_MS,
+        maxAge: Constant.ACCESS_TOKEN_EXPIRY_MS,
       });
 
       cookie.refreshToken.set({
@@ -142,8 +142,36 @@ export const AuthController = new Elysia()
       });
     }
   )
+  .post(
+    "/forgot-password",
+    async ({ body, authRepository }) => {
+      await authRepository.createPasswordResetToken(body.email);
+
+      return createSuccessResponse<void>(
+        "Please check your email. It should be there in a few seconds.",
+        undefined
+      );
+    },
+    {
+      body: "ForgotPasswordBody",
+    }
+  )
+  .post(
+    "/reset-password/:token",
+    async ({ params, body, authRepository }) => {
+      await authRepository.resetPassword(params.token, body.newPassword);
+
+      return createSuccessResponse<void>(
+        "Password reset successfully",
+        undefined
+      );
+    },
+    {
+      body: "ResetPasswordBody",
+    }
+  )
   .use(AuthPlugin)
-  .post("/signout", async ({ cookie, authRepository, user }) => {
+  .post("/sign-out", async ({ cookie, authRepository, user }) => {
     cookie.accessToken.remove();
     cookie.refreshToken.remove();
     await authRepository.removeRefreshToken(user._id as string);
@@ -152,4 +180,27 @@ export const AuthController = new Elysia()
       "User signed out successfully",
       undefined
     );
-  });
+  })
+  .post(
+    "/change-password",
+    async ({ body, user, authRepository }) => {
+      if (!user) {
+        throw new AuthorizationError(
+          "User not found",
+          AuthorizationErrorType.USER_NOT_FOUND
+        );
+      }
+      await authRepository.alterUserPassword(
+        user._id || "",
+        body.currentPassword,
+        body.newPassword
+      );
+      return createSuccessResponse<void>(
+        "Password changed successfully",
+        undefined
+      );
+    },
+    {
+      body: "ChangePasswordBody",
+    }
+  );
