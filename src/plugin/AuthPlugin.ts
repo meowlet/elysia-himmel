@@ -5,7 +5,7 @@ import { AuthService } from "../service/AuthService";
 import { Database } from "../database/Database";
 import { AuthRepository } from "../repository/AuthRepository";
 import { AuthorizationErrorType } from "../util/Enum";
-import { UserRepository } from "../repository/UserRepository";
+import { MeRepository } from "../repository/MeRepository";
 
 export const AuthPlugin = new Elysia()
   .use(Database)
@@ -15,9 +15,9 @@ export const AuthPlugin = new Elysia()
       secret: Bun.env.JWT_SECRET || "The ultimate secret",
     })
   )
-  .derive({ as: "global" }, async ({ headers, jwt, database, cookie }) => {
+  .derive({ as: "global" }, async ({ headers, jwt, cookie }) => {
     const accessToken =
-      cookie.refreshToken?.value || headers.authorization?.substring(7);
+      cookie.accessToken?.value || headers.authorization?.substring(7);
 
     if (!accessToken) {
       throw new AuthorizationError(
@@ -35,14 +35,7 @@ export const AuthPlugin = new Elysia()
       );
     }
 
-    const authService = new AuthService();
-    authService.userId = payload.sub as string;
-    authService.database = database;
-
     return {
-      user: {
-        _id: payload.sub,
-        userRepository: new UserRepository(authService, database),
-      },
+      userId: payload.sub,
     };
   });
