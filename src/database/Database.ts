@@ -48,3 +48,5 @@ export const Database = new Elysia().decorate(
   "database",
   MongoDatabase.getInstance().getDatabase()
 );
+
+export const database = MongoDatabase.getInstance().getDatabase();
