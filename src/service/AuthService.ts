@@ -5,9 +5,9 @@ export class AuthService {
   private _database: Db | null;
   private _userId: string | null;
 
-  constructor() {
-    this._database = null;
-    this._userId = null;
+  constructor(database: Db, userId: string) {
+    this._database = database;
+    this._userId = userId;
   }
 
   set database(database: Db) {

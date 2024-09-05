@@ -7,11 +7,12 @@ import { AuthorizationError, ConflictError } from "../util/Error";
 import { AuthorizationErrorType, ConflictErrorType } from "../util/Enum";
 import EmailService from "../service/EmailService";
 import { randomBytes } from "crypto";
+import { database } from "../database/Database";
 
 export class AuthRepository {
   private database: Db;
 
-  constructor(database: Db) {
+  constructor() {
     this.database = database;
   }
 
@@ -124,7 +125,7 @@ export class AuthRepository {
     if (!user) {
       throw new AuthorizationError(
         "User not found",
-        AuthorizationErrorType.USER_NOT_FOUND
+        AuthorizationErrorType.INVALID_TOKEN
       );
     }
 
