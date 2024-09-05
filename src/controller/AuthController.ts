@@ -26,15 +26,15 @@ export const AuthController = new Elysia()
       exp: Constant.REFRESH_TOKEN_EXPIRY,
     })
   )
-  .derive(({ database }) => {
+  .derive(() => {
     return {
-      authRepository: new AuthRepository(database),
+      repository: new AuthRepository(),
     };
   })
   .post(
     "/sign-up",
-    async ({ body, authRepository }) => {
-      await authRepository.signUp(body.username, body.email, body.password);
+    async ({ body, repository }) => {
+      await repository.signUp(body.username, body.email, body.password);
       return createSuccessResponse<void>(
         "User signed up successfully",
         undefined
@@ -46,8 +46,8 @@ export const AuthController = new Elysia()
   )
   .post(
     "/sign-in",
-    async ({ body, authRepository, accessJwt, refreshJwt, cookie }) => {
-      const user = await authRepository.signIn(body.identifier, body.password);
+    async ({ body, repository, accessJwt, refreshJwt, cookie }) => {
+      const user = await repository.signIn(body.identifier, body.password);
 
       const accessToken = await accessJwt.sign({ sub: (user as any)._id });
       const refreshToken = await refreshJwt.sign({ sub: (user as any)._id });
@@ -83,8 +83,36 @@ export const AuthController = new Elysia()
     }
   )
   .post(
+    "/forgot-password",
+    async ({ body, repository }) => {
+      await repository.createPasswordResetToken(body.email);
+
+      return createSuccessResponse<void>(
+        "Please check your email. It should be there in a few seconds.",
+        undefined
+      );
+    },
+    {
+      body: "ForgotPasswordBody",
+    }
+  )
+  .post(
+    "/reset-password/:token",
+    async ({ params, body, repository }) => {
+      await repository.resetPassword(params.token, body.newPassword);
+
+      return createSuccessResponse<void>(
+        "Password reset successfully",
+        undefined
+      );
+    },
+    {
+      body: "ResetPasswordBody",
+    }
+  )
+  .post(
     "/refresh",
-    async ({ accessJwt, refreshJwt, cookie, headers, authRepository }) => {
+    async ({ accessJwt, refreshJwt, cookie, headers, repository }) => {
       const refreshToken =
         cookie.refreshToken?.value || headers.authorization?.substring(7);
 
@@ -105,7 +133,7 @@ export const AuthController = new Elysia()
 
       const userId: string = payload.sub as string;
 
-      if (!(await authRepository.checkUserExists(userId))) {
+      if (!(await repository.checkUserExists(userId))) {
         throw new AuthorizationError(
           "User not found",
           AuthorizationErrorType.INVALID_TOKEN
@@ -131,7 +159,7 @@ export const AuthController = new Elysia()
         maxAge: Constant.REFRESH_TOKEN_EXPIRY_MS,
       });
 
-      authRepository.updateRefreshToken(userId, newRefreshToken);
+      repository.updateRefreshToken(userId, newRefreshToken);
 
       return createSuccessResponse<{
         accessToken: string;
@@ -140,67 +168,5 @@ export const AuthController = new Elysia()
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
       });
-    }
-  )
-  .post(
-    "/forgot-password",
-    async ({ body, authRepository }) => {
-      await authRepository.createPasswordResetToken(body.email);
-
-      return createSuccessResponse<void>(
-        "Please check your email. It should be there in a few seconds.",
-        undefined
-      );
-    },
-    {
-      body: "ForgotPasswordBody",
-    }
-  )
-  .post(
-    "/reset-password/:token",
-    async ({ params, body, authRepository }) => {
-      await authRepository.resetPassword(params.token, body.newPassword);
-
-      return createSuccessResponse<void>(
-        "Password reset successfully",
-        undefined
-      );
-    },
-    {
-      body: "ResetPasswordBody",
-    }
-  )
-  .use(AuthPlugin)
-  .post("/sign-out", async ({ cookie, authRepository, user }) => {
-    cookie.accessToken.remove();
-    cookie.refreshToken.remove();
-    await authRepository.removeRefreshToken(user._id as string);
-
-    return createSuccessResponse<void>(
-      "User signed out successfully",
-      undefined
-    );
-  })
-  .post(
-    "/change-password",
-    async ({ body, user, authRepository }) => {
-      if (!user) {
-        throw new AuthorizationError(
-          "User not found",
-          AuthorizationErrorType.USER_NOT_FOUND
-        );
-      }
-      await authRepository.alterUserPassword(
-        user._id || "",
-        body.currentPassword,
-        body.newPassword
-      );
-      return createSuccessResponse<void>(
-        "Password changed successfully",
-        undefined
-      );
-    },
-    {
-      body: "ChangePasswordBody",
     }
   );
