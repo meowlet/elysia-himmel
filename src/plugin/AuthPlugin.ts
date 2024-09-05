@@ -5,6 +5,7 @@ import { AuthService } from "../service/AuthService";
 import { Database } from "../database/Database";
 import { AuthRepository } from "../repository/AuthRepository";
 import { AuthorizationErrorType } from "../util/Enum";
+import { UserRepository } from "../repository/UserRepository";
 
 export const AuthPlugin = new Elysia()
   .use(Database)
@@ -41,6 +42,7 @@ export const AuthPlugin = new Elysia()
     return {
       user: {
         _id: payload.sub,
+        userRepository: new UserRepository(authService, database),
       },
     };
   });
