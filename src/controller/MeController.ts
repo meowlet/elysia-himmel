@@ -8,9 +8,10 @@ import { AuthorizationErrorType } from "../util/Enum";
 import { AuthModel } from "../model/AuthModel";
 import { Constant } from "../util/Constant";
 import jwt from "@elysiajs/jwt";
+import { MeModel } from "../model/MeModel";
 
 export const MeController = new Elysia()
-  .use(AuthModel)
+  .use(MeModel)
   .use(AuthPlugin)
   .derive(({ userId }) => {
     return {

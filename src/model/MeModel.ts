@@ -1,0 +1,15 @@
+import Elysia, { t } from "elysia";
+
+export const MeModel = new Elysia().model({
+  ChangePasswordBody: t.Object({
+    currentPassword: t.String(),
+    newPassword: t.String({
+      minLength: 8,
+      maxLength: 32,
+      pattern:
+        "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
+      error:
+        "New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+    }),
+  }),
+});
