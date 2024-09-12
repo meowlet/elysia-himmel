@@ -1,5 +1,4 @@
 import { Db, ObjectId } from "mongodb";
-import bcrypt from "bcryptjs";
 import { Constant } from "../util/Constant";
 import { User } from "../model/Entity";
 import { AuthService } from "../service/AuthService";

@@ -13,33 +13,33 @@ import { MeModel } from "../model/MeModel";
 export const MeController = new Elysia()
   .use(MeModel)
   .use(AuthPlugin)
-  .derive(({ userId }) => {
+  .derive(async ({ userId }) => {
+    const repository = new MeRepository(userId!);
+    const user = await repository.getCurrentUser();
+    if (!user) {
+      throw new AuthorizationError(
+        "User not found",
+        AuthorizationErrorType.USER_NOT_FOUND
+      );
+    }
     return {
-      repository: new MeRepository(userId!),
+      repository: repository,
+      user: user,
     };
   })
-  .get("/", async ({ repository }) => {
-    return await repository.getCurrentUser();
+  .get("/", async ({ user }) => {
+    return user;
   })
-  .post("/sign-out", async ({ cookie, repository, userId }) => {
+  .post("/sign-out", async ({ cookie, repository, user }) => {
     cookie.accessToken.remove();
     cookie.refreshToken.remove();
-    await repository.removeRefreshToken(userId as string);
+    await repository.removeRefreshToken(user._id.toString());
 
-    return createSuccessResponse<void>(
-      "User signed out successfully",
-      undefined
-    );
+    return createSuccessResponse<void>("Successfully signed out", undefined);
   })
   .post(
     "/change-password",
     async ({ body, userId, repository }) => {
-      if (!userId) {
-        throw new AuthorizationError(
-          "User not found",
-          AuthorizationErrorType.USER_NOT_FOUND
-        );
-      }
       await repository.alterPassword(
         userId || "",
         body.currentPassword,
@@ -53,4 +53,39 @@ export const MeController = new Elysia()
     {
       body: "ChangePasswordBody",
     }
-  );
+  )
+  .post(
+    "/update-profile",
+    async ({ body, user, repository }) => {
+      if (body.fullName) {
+        user.fullName = body.fullName;
+      }
+      if (body.email) {
+        user.email = body.email;
+      }
+      if (body.phoneNumber) {
+        user.phoneNumber = body.phoneNumber;
+      }
+
+      await repository.updateUser(user);
+
+      return createSuccessResponse("Update profile successfully", user);
+    },
+    {
+      body: "UpdateProfileBody",
+    }
+  )
+  .post(
+    "/change-avatar",
+    async ({ body, user, repository }) => {
+      await repository.saveAvatar(body.avatar);
+      return createSuccessResponse("Change avatar successfully", user);
+    },
+    {
+      body: "ChangeAvatarBody",
+    }
+  )
+  .get("/avatar", async ({ user, repository }) => {
+    const avatar = await repository.getAvatar(user._id.toString());
+    return createSuccessResponse("Get avatar successfully", avatar);
+  });

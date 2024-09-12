@@ -1,4 +1,4 @@
-import { Db, ObjectId } from "mongodb";
+import { Db, ObjectId, WithId } from "mongodb";
 import { AuthService } from "../service/AuthService";
 import { User } from "../model/Entity";
 import { Constant } from "../util/Constant";
@@ -6,6 +6,8 @@ import { database } from "../database/Database";
 import { AuthorizationError } from "../util/Error";
 import { AuthorizationErrorType } from "../util/Enum";
 import EmailService from "../service/EmailService";
+import { StorageService } from "../service/StorageService";
+import { join } from "path";
 
 export class MeRepository {
   private database: Db;
@@ -14,6 +16,24 @@ export class MeRepository {
   constructor(userId: string) {
     this.database = database;
     this.authService = new AuthService(this.database, userId);
+  }
+
+  public async getAvatar(userId: string) {
+    const storage = new StorageService();
+    const path = join(userId, "avatar");
+    return await storage.getFile(path);
+  }
+
+  public async saveAvatar(avatar: File) {
+    const storage = new StorageService();
+    const path = join(this.authService.userId, "avatar");
+    await storage.saveFile(avatar, path, Constant.UPLOAD_DIRECTORY);
+  }
+
+  public async updateUser(user: WithId<User>) {
+    return await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .updateOne({ _id: new ObjectId(user._id) }, { $set: user });
   }
 
   public async getCurrentUser() {
