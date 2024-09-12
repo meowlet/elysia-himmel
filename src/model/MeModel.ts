@@ -12,4 +12,18 @@ export const MeModel = new Elysia().model({
         "New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
     }),
   }),
+  UpdateProfileBody: t.Object({
+    fullName: t.String(),
+    email: t.String({
+      format: "email",
+      error: "Invalid email format",
+    }),
+    phoneNumber: t.String(),
+  }),
+  ChangeAvatarBody: t.Object({
+    avatar: t.File({
+      type: "image/png",
+      maxSize: 1024 * 1024 * 5, // 5MB
+    }),
+  }),
 });

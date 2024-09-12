@@ -20,6 +20,7 @@ interface User {
   fullName?: string;
   email: string;
   passwordHash: string;
+  phoneNumber?: string;
   isPremium: boolean;
   premiumExpiryDate?: Date;
   favoriteTags: string[]; // Array of tag_ids
