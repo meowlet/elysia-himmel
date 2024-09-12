@@ -2,6 +2,7 @@ import {
   AuthorizationErrorType,
   ForbiddenErrorType,
   ConflictErrorType,
+  StorageErrorType,
 } from "./Enum";
 
 export class CustomError extends Error {
@@ -34,6 +35,15 @@ export class ConflictError extends CustomError {
   constructor(
     message: string = "Conflict Error",
     type: ConflictErrorType = ConflictErrorType.VALIDATION_ERROR
+  ) {
+    super(message, type);
+  }
+}
+
+export class StorageError extends CustomError {
+  constructor(
+    message: string = "Storage Error",
+    type: StorageErrorType = StorageErrorType.SAVE_FILE_ERROR
   ) {
     super(message, type);
   }

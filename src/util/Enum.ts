@@ -38,3 +38,8 @@ export enum ConflictErrorType {
   DUPLICATE_ENTRY = "DUPLICATE_ENTRY",
   VALIDATION_ERROR = "VALIDATION_ERROR",
 }
+
+export enum StorageErrorType {
+  SAVE_FILE_ERROR = "SAVE_FILE_ERROR",
+  DELETE_FILE_ERROR = "DELETE_FILE_ERROR",
+}
