@@ -1,4 +1,4 @@
-import Elysia from "elysia";
+import Elysia, { NotFoundError } from "elysia";
 import { AuthorizationError } from "../util/Error";
 import { AuthPlugin } from "../plugin/AuthPlugin";
 import { Database } from "../database/Database";
@@ -28,7 +28,7 @@ export const MeController = new Elysia()
     };
   })
   .get("/", async ({ user }) => {
-    return user;
+    return createSuccessResponse("Get user successfully", user);
   })
   .post("/sign-out", async ({ cookie, repository, user }) => {
     cookie.accessToken.remove();
@@ -76,7 +76,7 @@ export const MeController = new Elysia()
     }
   )
   .post(
-    "/change-avatar",
+    "/avatar",
     async ({ body, user, repository }) => {
       await repository.saveAvatar(body.avatar);
       return createSuccessResponse("Change avatar successfully", user);
@@ -84,8 +84,4 @@ export const MeController = new Elysia()
     {
       body: "ChangeAvatarBody",
     }
-  )
-  .get("/avatar", async ({ user, repository }) => {
-    const avatar = await repository.getAvatar(user._id.toString());
-    return createSuccessResponse("Get avatar successfully", avatar);
-  });
+  );

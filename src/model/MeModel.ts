@@ -23,7 +23,8 @@ export const MeModel = new Elysia().model({
   ChangeAvatarBody: t.Object({
     avatar: t.File({
       type: "image/png",
-      maxSize: 1024 * 1024 * 5, // 5MB
+      maxSize: 1024 * 1024 * 1, // 1MB
+      error: "The avatar must be a valid image and less than 1MB",
     }),
   }),
 });
