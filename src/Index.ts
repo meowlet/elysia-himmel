@@ -5,8 +5,10 @@ import { Application } from "./Application";
 import { AuthRepository } from "./repository/AuthRepository";
 import { ErrorPlugin } from "./plugin/ErrorPlugin";
 import { AuthorizationError, ConflictError } from "./util/Error";
+import cors from "@elysiajs/cors";
 
 const app = new Elysia()
+  .use(cors())
   .use(ErrorPlugin)
   .use(Database)
   .get("/", () => {
