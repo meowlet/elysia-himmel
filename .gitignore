@@ -42,3 +42,6 @@ package-lock.json
 **/*.bun
 .env
 bun.lockb
+ # ignore all file in folder uploads and the test html file
+uploads
+index.html
