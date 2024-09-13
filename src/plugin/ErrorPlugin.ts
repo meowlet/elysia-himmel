@@ -3,12 +3,20 @@ import {
   AuthorizationError,
   ForbiddenError,
   ConflictError,
+  StorageError,
 } from "../util/Error";
 import { createErrorResponse } from "../model/Response";
+import { logger } from "@bogeychan/elysia-logger";
 
 export const ErrorPlugin = new Elysia()
-  .error({ AuthorizationError, ForbiddenError, ConflictError })
+  .error({ AuthorizationError, ForbiddenError, ConflictError, StorageError })
+  .use(
+    logger({
+      level: "error",
+    })
+  )
   .onError({ as: "global" }, ({ code, error, set }) => {
+    console.error(error);
     switch (code) {
       case "ConflictError": {
         set.status = 409;
@@ -80,6 +88,15 @@ export const ErrorPlugin = new Elysia()
           "Unknown error. An unexpected error occurred.",
           "UNKNOWN_ERROR",
           "UNKNOWN_ERROR",
+          error.message
+        );
+      }
+      case "StorageError": {
+        set.status = 500;
+        return createErrorResponse(
+          "Storage error. An unexpected error occurred on the storage.",
+          "STORAGE_ERROR",
+          "STORAGE_ERROR",
           error.message
         );
       }
