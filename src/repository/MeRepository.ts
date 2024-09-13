@@ -18,16 +18,10 @@ export class MeRepository {
     this.authService = new AuthService(this.database, userId);
   }
 
-  public async getAvatar(userId: string) {
-    const storage = new StorageService();
-    const path = join(userId, "avatar");
-    return await storage.getFile(path);
-  }
-
-  public async saveAvatar(avatar: File) {
+  public async saveAvatar(avatar: File): Promise<string> {
     const storage = new StorageService();
     const path = join(this.authService.userId, "avatar");
-    await storage.saveFile(avatar, path, Constant.UPLOAD_DIRECTORY);
+    return await storage.saveFile(avatar, path);
   }
 
   public async updateUser(user: WithId<User>) {
