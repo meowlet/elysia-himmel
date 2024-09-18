@@ -27,12 +27,12 @@ export class AuthRepository {
         algorithm: "bcrypt",
         cost: Constant.SALT,
       }),
+      role: new ObjectId(),
+      earnings: 0,
       isPremium: false,
-      premiumExpiryDate: undefined,
       favoriteTags: [],
       createdAt: new Date(),
       updatedAt: new Date(),
-      bio: undefined,
     };
     await this.database
       .collection(Constant.USER_COLLECTION)

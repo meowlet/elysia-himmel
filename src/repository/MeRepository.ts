@@ -8,20 +8,72 @@ import { AuthorizationErrorType } from "../util/Enum";
 import EmailService from "../service/EmailService";
 import { StorageService } from "../service/StorageService";
 import { join } from "path";
+import { ValidationError } from "elysia";
+import { Duration } from "../model/MeModel";
+import { PaymentService } from "../service/PaymentService";
 
 export class MeRepository {
   private database: Db;
-  private authService: AuthService;
+  private paymentService: PaymentService;
+  public authService: AuthService;
+  private storageService: StorageService;
+  private emailService: EmailService;
 
-  constructor(userId: string) {
+  constructor(private userId: string) {
     this.database = database;
-    this.authService = new AuthService(this.database, userId);
+    this.authService = new AuthService(this.database, this.userId);
+    this.paymentService = new PaymentService();
+    this.storageService = new StorageService();
+    this.emailService = new EmailService();
+  }
+
+  public async purchasePremium(duration: Duration): Promise<{
+    status: "success" | "error";
+    paymentUrl?: string;
+  }> {
+    const user = await this.authService.getUser();
+
+    const amount = this.getPremiumAmount(duration);
+
+    const humanReadableDuration = {
+      [Duration.ONE_MONTH]: "1 month",
+      [Duration.THREE_MONTH]: "3 months",
+      [Duration.SIX_MONTH]: "6 months",
+      [Duration.ONE_YEAR]: "1 year",
+    };
+
+    const orderInfo = `Upgrade to Premium - ${humanReadableDuration[duration]}`;
+
+    try {
+      const paymentUrl = await this.paymentService.createMoMoPayment(
+        amount,
+        orderInfo
+      );
+      return { status: "success", paymentUrl };
+    } catch (error) {
+      console.error("Error creating payment request:", error);
+      return { status: "error" };
+    }
+  }
+
+  private getPremiumAmount(duration: Duration): string {
+    const amounts = {
+      [Duration.ONE_MONTH]: "5000",
+      [Duration.THREE_MONTH]: "14000",
+      [Duration.SIX_MONTH]: "26000",
+      [Duration.ONE_YEAR]: "50000",
+    };
+    return (
+      amounts[duration] ||
+      (() => {
+        throw new Error("Invalid duration");
+      })()
+    );
   }
 
   public async saveAvatar(avatar: File): Promise<string> {
-    const storage = new StorageService();
-    const path = join(this.authService.userId, "avatar");
-    return await storage.saveFile(avatar, path);
+    const path = join(this.userId, "avatar");
+    return await this.storageService.saveFile(avatar, path);
   }
 
   public async updateUser(user: WithId<User>) {
@@ -30,10 +82,10 @@ export class MeRepository {
       .updateOne({ _id: new ObjectId(user._id) }, { $set: user });
   }
 
-  public async getCurrentUser() {
+  public async getCurrentUser(): Promise<WithId<User>> {
     const currentUser = await this.database
       .collection<User>(Constant.USER_COLLECTION)
-      .findOne({ _id: new ObjectId(this.authService.userId) });
+      .findOne({ _id: new ObjectId(this.userId) });
 
     if (!currentUser) {
       throw new AuthorizationError(
@@ -44,21 +96,12 @@ export class MeRepository {
 
     return currentUser;
   }
+
   public async alterPassword(
-    userId: string,
     currentPassword: string,
     newPassword: string
   ): Promise<void> {
-    const user = await this.database
-      .collection<User>(Constant.USER_COLLECTION)
-      .findOne({ _id: new ObjectId(userId) });
-
-    if (!user) {
-      throw new AuthorizationError(
-        "User not found",
-        AuthorizationErrorType.INVALID_TOKEN
-      );
-    }
+    const user = await this.getCurrentUser();
 
     const isPasswordCorrect = await Bun.password.verify(
       currentPassword,
@@ -80,29 +123,37 @@ export class MeRepository {
     await this.database
       .collection<User>(Constant.USER_COLLECTION)
       .updateOne(
-        { _id: new ObjectId(userId) },
+        { _id: new ObjectId(this.userId) },
         { $set: { passwordHash: newPasswordHash, updatedAt: new Date() } }
       );
 
-    // Send email to user
-    new EmailService().sendMail({
+    await this.emailService.sendMail({
       from: "Meow <mercury.meowsica.me>",
       to: user.email,
-      subject: "Password changed",
+      subject: "Password has been changed",
       text: "Your password has been changed.",
       html: "<p>Your password has been changed.</p>",
     });
   }
 
-  public async removeRefreshToken(userId: string) {
-    console.log(userId);
+  public async removeRefreshToken() {
     await this.database.collection<User>(Constant.USER_COLLECTION).updateOne(
-      { _id: new ObjectId(userId) },
+      { _id: new ObjectId(this.userId) },
       {
         $set: {
-          data: {
-            refreshToken: null,
-          },
+          "data.refreshToken": null,
+        },
+      }
+    );
+  }
+
+  public async updatePremiumStatus(isPremium: boolean) {
+    await this.database.collection<User>(Constant.USER_COLLECTION).updateOne(
+      { _id: new ObjectId(this.userId) },
+      {
+        $set: {
+          isPremium,
+          premiumUpdatedAt: new Date(),
         },
       }
     );
