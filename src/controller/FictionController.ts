@@ -24,12 +24,39 @@ export const FictionController = new Elysia()
     }
   )
   .get(
-    "/query",
+    "/",
     async ({ query, repository }) => {
       const fictions = await repository.queryFictions(query);
       return createSuccessResponse("Fictions retrieved successfully", fictions);
     },
     {
       query: "QueryFictionParams",
+    }
+  )
+  .get(
+    "/:fictionId",
+    async ({ params, repository }) => {
+      const fiction = await repository.getFiction(params.fictionId);
+      return createSuccessResponse("Fiction retrieved successfully", fiction);
+    },
+    {
+      params: "FictionIdParams",
+    }
+  )
+  .patch(
+    "/:fictionId",
+    async ({ params, body, repository }) => {
+      const updatedFiction = await repository.updateFiction(
+        params.fictionId,
+        body
+      );
+      return createSuccessResponse(
+        "Fiction updated successfully",
+        updatedFiction
+      );
+    },
+    {
+      params: "FictionIdParams",
+      body: "UpdateFictionBody",
     }
   );
