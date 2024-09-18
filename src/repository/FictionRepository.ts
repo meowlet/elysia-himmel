@@ -7,9 +7,11 @@ import {
   FictionType,
   Tag,
   User,
+  Chapter,
 } from "../model/Entity";
-import { AuthorizationError } from "../util/Error";
+import { AuthorizationError, ForbiddenError } from "../util/Error";
 import { AuthorizationErrorType } from "../util/Enum";
+import { NotFoundError } from "elysia";
 
 export enum SortField {
   TITLE = "title",
@@ -25,18 +27,19 @@ export enum SortOrder {
 }
 
 interface QueryFictionParams {
-  title?: string;
-  authorId?: string;
+  query?: string;
+  author?: string;
   tags?: string[];
-  genres?: string[];
   status?: FictionStatus;
   type?: FictionType;
-  createdFrom?: Date;
-  createdTo?: Date;
+  createdFrom?: Date | null;
+  createdTo?: Date | null;
   sortBy?: SortField;
   sortOrder?: SortOrder;
   page?: number;
   limit?: number;
+  minViewCount?: number;
+  minRating?: number;
 }
 
 interface QueryFictionResult {
@@ -69,11 +72,10 @@ export class FictionRepository {
   async createFiction(fictionData: Partial<Fiction>): Promise<WithId<Fiction>> {
     const newFiction: Fiction = {
       ...fictionData,
-      authorId: new ObjectId(this.userId).toString(),
+      author: new ObjectId(this.userId),
       title: fictionData.title || "",
       description: fictionData.description || "",
-      // The tags must be an array of ObjectId
-      tags: fictionData.tags?.map((tag) => new ObjectId(tag).toString()) || [],
+      tags: fictionData.tags?.map((tag) => new ObjectId(tag)) || [],
       status: fictionData.status || FictionStatus.ONGOING,
       type: fictionData.type || FictionType.FREE,
       stats: {
@@ -87,7 +89,7 @@ export class FictionRepository {
     };
 
     for (const tag of newFiction.tags) {
-      if (!(await this.doesTagExist(tag))) {
+      if (!(await this.doesTagExist(tag.toString()))) {
         throw new Error(`This tag does not exist: ${tag}`);
       }
     }
@@ -108,56 +110,65 @@ export class FictionRepository {
     const validTag = await this.database
       .collection<Tag>(Constant.TAG_COLLECTION)
       .findOne({ _id: new ObjectId(tag) });
-
     return !!validTag;
   }
 
   async queryFictions(params: QueryFictionParams): Promise<QueryFictionResult> {
     const {
-      title,
-      authorId,
+      query,
+      author,
       tags,
-      genres,
       status,
       type,
       createdFrom,
       createdTo,
-      sortBy = "createdAt",
-      sortOrder = "desc",
+      sortBy = SortField.CREATED_AT,
+      sortOrder = SortOrder.DESC,
       page = 1,
       limit = 10,
+      minViewCount,
+      minRating,
     } = params;
 
-    const query: any = {};
-    if (title) query.title = { $regex: title, $options: "i" };
-    if (authorId) query.authorId = new ObjectId(authorId);
-    if (tags && tags.length > 0) query.tags = { $all: tags };
-    if (genres && genres.length > 0) query.genres = { $all: genres };
-    if (status) query.status = status;
-    if (type) query.type = type;
-    if (createdFrom || createdTo) {
-      query.createdAt = {};
-      if (createdFrom) query.createdAt.$gte = createdFrom;
-      if (createdTo) query.createdAt.$lte = createdTo;
+    const queryConditions: any = {};
+    if (query) {
+      queryConditions.$or = [
+        { title: { $regex: query, $options: "i" } },
+        { description: { $regex: query, $options: "i" } },
+      ];
     }
+    if (author) queryConditions.author = author;
+    if (tags && tags.length > 0) queryConditions.tags = { $all: tags };
+    if (status) queryConditions.status = status;
+    if (type) queryConditions.type = type;
+    if (createdFrom || createdTo) {
+      queryConditions.createdAt = {};
+      if (createdFrom) queryConditions.createdAt.$gte = createdFrom;
+      if (createdTo) queryConditions.createdAt.$lte = createdTo;
+    }
+    if (minViewCount)
+      queryConditions["stats.viewCount"] = { $gte: minViewCount };
+    if (minRating) queryConditions["stats.averageRating"] = { $gte: minRating };
 
     const sort: { [key in SortField]?: 1 | -1 } = {
-      [sortBy]: sortOrder === "desc" ? -1 : 1,
+      [sortBy]: sortOrder === SortOrder.DESC ? -1 : 1,
     };
 
     const skip = (page - 1) * limit;
 
+    console.log(queryConditions);
+
     const [fictions, total] = await Promise.all([
       this.database
         .collection<Fiction>(Constant.FICTION_COLLECTION)
-        .find(query)
+        .find(queryConditions)
         .sort(sort)
         .skip(skip)
         .limit(limit)
         .toArray(),
       this.database
         .collection<Fiction>(Constant.FICTION_COLLECTION)
-        .countDocuments(query),
+        .countDocuments(queryConditions),
     ]);
 
     return { fictions, total };
@@ -169,19 +180,76 @@ export class FictionRepository {
       .findOne({ _id: new ObjectId(fictionId) });
   }
 
+  // Get full fiction by id
+  async getFiction(fictionId: string) {
+    const fiction = await this.database
+      .collection<Fiction>(Constant.FICTION_COLLECTION)
+      .aggregate([
+        { $match: { _id: new ObjectId(fictionId) } },
+        {
+          $lookup: {
+            from: Constant.TAG_COLLECTION,
+            localField: "tags",
+            foreignField: "_id",
+            as: "tags",
+          },
+        },
+        {
+          $lookup: {
+            from: Constant.USER_COLLECTION,
+            localField: "author",
+            foreignField: "_id",
+            as: "author",
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            description: 1,
+            author: { $first: "$author" },
+            tags: 1,
+            status: 1,
+            type: 1,
+            stats: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ])
+      .toArray()
+      .then((results) => results[0] || null);
+
+    if (!fiction) throw new NotFoundError("Fiction not found");
+
+    return fiction;
+  }
+
   async updateFiction(
     fictionId: string,
     updateData: Partial<Fiction>
   ): Promise<Fiction | null> {
+    for (const tag of updateData.tags || []) {
+      if (!(await this.doesTagExist(tag.toString()))) {
+        throw new Error(`This tag does not exist: ${tag}`);
+      }
+    }
+    updateData.tags = updateData.tags?.map((tag) => new ObjectId(tag)) || [];
+
     const result = await this.database
       .collection<Fiction>(Constant.FICTION_COLLECTION)
       .findOneAndUpdate(
-        { _id: new ObjectId(fictionId) },
+        { _id: new ObjectId(fictionId), author: new ObjectId(this.userId) },
         { $set: { ...updateData, updatedAt: new Date() } },
         { returnDocument: "after" }
       );
 
-    return result || null;
+    if (!result)
+      throw new NotFoundError(
+        "Fiction not found or you are not the author of this fiction"
+      );
+
+    return result;
   }
 
   async deleteFiction(fictionId: string): Promise<boolean> {
@@ -203,7 +271,7 @@ export class FictionRepository {
 
   async updateRating(fictionId: string, newRating: number): Promise<void> {
     const fiction = await this.getFictionById(fictionId);
-    if (!fiction) throw new Error("Không tìm thấy truyện");
+    if (!fiction) throw new Error("Fiction not found");
 
     const newTotalRating =
       fiction.stats.averageRating * fiction.stats.ratingCount + newRating;
@@ -221,5 +289,122 @@ export class FictionRepository {
           },
         }
       );
+  }
+
+  async createChapter(
+    fictionId: string,
+    chapterData: Partial<Chapter>
+  ): Promise<WithId<Chapter>> {
+    const fiction = await this.getFictionById(fictionId);
+    if (!fiction) {
+      throw new NotFoundError("Fiction not found");
+    }
+
+    if (fiction.author.toString() !== this.userId) {
+      throw new ForbiddenError("You are not the author of this fiction");
+    }
+
+    const newChapter: Chapter = {
+      fiction: new ObjectId(fictionId),
+      chapterNumber: chapterData.chapterNumber || 0,
+      title: chapterData.title || "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const result = await this.database
+      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
+      .insertOne(newChapter);
+
+    if (!result.acknowledged) {
+      throw new Error("Failed to create new chapter");
+    }
+
+    return { ...newChapter, _id: result.insertedId };
+  }
+
+  async updateChapter(
+    chapterId: string,
+    updateData: Partial<Chapter>
+  ): Promise<Chapter | null> {
+    const chapter = await this.database
+      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
+      .findOne({ _id: new ObjectId(chapterId) });
+
+    if (!chapter) {
+      throw new NotFoundError("Chapter not found");
+    }
+
+    const fiction = await this.getFictionById(chapter.fiction.toString());
+    if (!fiction) {
+      throw new NotFoundError("Fiction not found");
+    }
+
+    if (fiction.author.toString() !== this.userId) {
+      throw new ForbiddenError("You are not the author of this fiction");
+    }
+
+    const result = await this.database
+      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
+      .findOneAndUpdate(
+        { _id: new ObjectId(chapterId) },
+        { $set: { ...updateData, updatedAt: new Date() } },
+        { returnDocument: "after" }
+      );
+
+    if (!result) {
+      throw new NotFoundError("Chapter not found");
+    }
+
+    return result;
+  }
+
+  async deleteChapter(chapterId: string): Promise<boolean> {
+    const chapter = await this.database
+      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
+      .findOne({ _id: new ObjectId(chapterId) });
+
+    if (!chapter) {
+      throw new NotFoundError("Chapter not found");
+    }
+
+    const fiction = await this.getFictionById(chapter.fiction.toString());
+    if (!fiction) {
+      throw new NotFoundError("Fiction not found");
+    }
+
+    if (fiction.author.toString() !== this.userId) {
+      throw new ForbiddenError("You are not the author of this fiction");
+    }
+
+    const result = await this.database
+      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
+      .deleteOne({ _id: new ObjectId(chapterId) });
+
+    return result.deletedCount === 1;
+  }
+
+  async getChapters(fictionId: string): Promise<Chapter[]> {
+    const chapters = await this.database
+      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
+      .find({ fiction: new ObjectId(fictionId) })
+      .sort({ chapterNumber: 1 })
+      .toArray();
+
+    return chapters;
+  }
+
+  async getChapter(chapterId: string): Promise<Chapter | null> {
+    const chapter = await this.database
+      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
+      .findOne({ _id: new ObjectId(chapterId) });
+
+    if (!chapter) {
+      throw new NotFoundError("Chapter not found");
+    }
+
+    await this.incrementViewCount(chapter.fiction.toString());
+
+    return chapter;
   }
 }
