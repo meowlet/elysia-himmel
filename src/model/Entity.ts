@@ -49,7 +49,7 @@ interface User {
   fullName?: string;
   email: string;
   passwordHash: string;
-  role: string; // Reference to Role._id
+  role: string | ObjectId; // Reference to Role._id
   authorApplicationStatus?: AuthorApplicationStatus;
   earnings: number;
   isPremium: boolean;
@@ -79,8 +79,8 @@ interface FictionStats {
 interface Fiction {
   title: string;
   description: string;
-  authorId: string; // Reference to User._id
-  tags: string[]; // Array of tag_ids
+  author: string | ObjectId; // Reference to User._id
+  tags: string[] | ObjectId[]; // Array of tag_ids
   stats: FictionStats;
   status: FictionStatus;
   createdAt: Date;
@@ -89,7 +89,7 @@ interface Fiction {
 }
 
 interface Chapter {
-  workId: string; // Reference to Fiction._id
+  fiction: string | ObjectId; // Reference to Fiction._id
   chapterNumber: number;
   title: string;
   createdAt: Date;
@@ -104,8 +104,8 @@ interface Tag {
 }
 
 interface Rating {
-  userId: string; // Reference to User._id
-  workId: string; // Reference to Fiction._id
+  user: string | ObjectId; // Reference to User._id
+  fiction: string | ObjectId; // Reference to Fiction._id
   score: number;
   review?: string;
   createdAt: Date;
@@ -113,9 +113,9 @@ interface Rating {
 }
 
 interface Comment {
-  userId: string; // Reference to User._id
-  workId: string; // Reference to Fiction._id
-  chapterId?: string; // Optional: Reference to Chapter._id
+  user: string | ObjectId; // Reference to User._id
+  fiction: string | ObjectId; // Reference to Fiction._id
+  chapter?: string | ObjectId; // Optional: Reference to Chapter._id
   content: string;
   createdAt: Date;
   updatedAt: Date;
@@ -124,7 +124,7 @@ interface Comment {
 interface Forum {
   title: string;
   description?: string;
-  createdById: string; // Reference to User._id
+  createdBy: string | ObjectId; // Reference to User._id
   postCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -136,8 +136,8 @@ interface PostContent {
 }
 
 interface Post {
-  forumId: string; // Reference to Forum._id
-  userId: string; // Reference to User._id
+  forum: string | ObjectId; // Reference to Forum._id
+  user: string | ObjectId; // Reference to User._id
   content: PostContent;
   commentCount: number;
   recentComments: ForumComment[];
@@ -146,8 +146,8 @@ interface Post {
 }
 
 interface ForumComment {
-  postId: string; // Reference to Post._id
-  userId: string; // Reference to User._id
+  post: string | ObjectId; // Reference to Post._id
+  user: string | ObjectId; // Reference to User._id
   content: string;
   createdAt: Date;
   updatedAt: Date;
@@ -159,7 +159,7 @@ interface NotificationContent {
 }
 
 interface Notification {
-  userId: string; // Reference to User._id
+  user: string | ObjectId; // Reference to User._id
   content: NotificationContent;
   type: NotificationType;
   link: string;
@@ -168,13 +168,13 @@ interface Notification {
 }
 
 interface Follow {
-  followerId: string; // Reference to User._id
-  followedId: string; // Reference to User._id
+  follower: string | ObjectId; // Reference to User._id
+  followed: string | ObjectId; // Reference to User._id
   createdAt: Date;
 }
 
 interface Transaction {
-  userId: string; // Reference to User._id
+  user: string | ObjectId; // Reference to User._id
   type: TransactionType;
   amount: number;
   status: PaymentStatus;
@@ -184,7 +184,7 @@ interface Transaction {
 }
 
 interface AuthorApplication {
-  userId: string; // Reference to User._id
+  user: string | ObjectId; // Reference to User._id
   status: AuthorApplicationStatus;
   applicationDate: Date;
   reviewDate?: Date;
@@ -193,7 +193,7 @@ interface AuthorApplication {
 }
 
 interface SearchQuery {
-  userId: string; // Reference to User._id
+  user: string | ObjectId; // Reference to User._id
   keyword?: string;
   filters?: object; // Store advanced filters
   createdAt: Date;
