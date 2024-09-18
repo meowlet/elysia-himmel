@@ -4,7 +4,8 @@ export class Constant {
 
   // Server configuration
   static readonly PORT = 3000; // Port for the backend server
-  static readonly FE_URL = "http://localhost:3000"; // URL for the frontend
+  static readonly BE_URL = "http://localhost:3000"; // URL for the backend
+  static readonly FE_URL = "http://localhost:3001"; // URL for the frontend
 
   // Security settings
   static readonly SALT = 8; // Salt rounds for bcrypt hashing
@@ -16,9 +17,12 @@ export class Constant {
   static readonly REFRESH_TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // Refresh token expiry in milliseconds (7 days)
 
   // MongoDB collection names
+  static readonly TRANSACTION_COLLECTION = "transactions"; // Collection for transaction data
   static readonly USER_COLLECTION = "users"; // Collection for user data
   static readonly POST_COLLECTION = "posts"; // Collection for post data
   static readonly COMMENT_COLLECTION = "comments"; // Collection for comment data
   static readonly BASE_URL = "http://localhost:3000"; // Base URL for the backend server
   static readonly UPLOAD_DIRECTORY = "uploads"; // Directory for uploaded files
+  static readonly FICTION_COLLECTION = "fictions"; // Collection for fiction data
+  static readonly TAG_COLLECTION = "tags"; // Collection for tag data
 }
