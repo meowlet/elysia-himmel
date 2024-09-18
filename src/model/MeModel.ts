@@ -1,5 +1,12 @@
 import Elysia, { t } from "elysia";
 
+export enum Duration {
+  ONE_MONTH = "ONE_MONTH",
+  THREE_MONTH = "THREE_MONTH",
+  SIX_MONTH = "SIX_MONTH",
+  ONE_YEAR = "ONE_YEAR",
+}
+
 export const MeModel = new Elysia().model({
   ChangePasswordBody: t.Object({
     currentPassword: t.String(),
@@ -25,6 +32,11 @@ export const MeModel = new Elysia().model({
       type: "image/png",
       maxSize: 1024 * 1024 * 1, // 1MB
       error: "The avatar must be a valid image and less than 1MB",
+    }),
+  }),
+  PurchasePremiumBody: t.Object({
+    duration: t.Enum(Duration, {
+      error: "Invalid duration",
     }),
   }),
 });
