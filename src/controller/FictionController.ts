@@ -59,4 +59,14 @@ export const FictionController = new Elysia()
       params: "FictionIdParams",
       body: "UpdateFictionBody",
     }
+  )
+  .delete(
+    "/:fictionId",
+    async ({ params, repository }) => {
+      const result = await repository.deleteFiction(params.fictionId);
+      return createSuccessResponse("Fiction deleted successfully", result);
+    },
+    {
+      params: "FictionIdParams",
+    }
   );
