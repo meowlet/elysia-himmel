@@ -1,12 +1,7 @@
+import { ObjectId } from "mongodb";
 import { Action, Resource } from "../util/Enum";
 
 // Enums
-enum WorkType {
-  COMIC = "comic",
-  NOVEL = "novel",
-  // Add more types as needed
-}
-
 enum NotificationType {
   SYSTEM = "system",
   FOLLOW = "follow",
@@ -14,23 +9,57 @@ enum NotificationType {
   // Add more types as needed
 }
 
-// User interface
+enum AuthorApplicationStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+}
+
+export enum FictionType {
+  FREE = "free",
+  PREMIUM = "premium",
+}
+
+export enum FictionStatus {
+  DRAFT = "draft",
+  FINISHED = "finished",
+  ONGOING = "ongoing",
+  HIATUS = "hiatus",
+}
+
+export enum PaymentStatus {
+  PENDING = "pending",
+  SUCCESS = "success",
+  FAILED = "failed",
+}
+
+enum PaymentMethod {
+  MOMO = "momo",
+  // Add more payment methods as needed
+}
+
+enum TransactionType {
+  PREMIUM_SUBSCRIPTION = "premium_subscription",
+  AUTHOR_PAYOUT = "author_payout",
+}
+
+// Interfaces
 interface User {
   username: string;
   fullName?: string;
   email: string;
   passwordHash: string;
-  phoneNumber?: string;
+  role: string; // Reference to Role._id
+  authorApplicationStatus?: AuthorApplicationStatus;
+  earnings: number;
   isPremium: boolean;
-  premiumExpiryDate?: Date;
+  premiumExpiryDate?: Date; // Premium subscription expiry date
   favoriteTags: string[]; // Array of tag_ids
   createdAt: Date;
   updatedAt: Date;
   bio?: string;
-  role?: string; // Reference to Role._id
 }
 
-// Role interface
 interface Role {
   name: string;
   description?: string;
@@ -40,61 +69,58 @@ interface Role {
   }[]; // Array of resource-action pairs
 }
 
-// Work interface
-interface Work {
-  title: string;
-  description: string;
-  authorId: string; // Reference to User._id
-  authorName: string; // Denormalized for quick access
-  type: WorkType;
-  tags: string[]; // Array of tag_ids
+interface FictionStats {
   viewCount: number;
   ratingCount: number;
   averageRating: number;
   commentCount: number;
-  isLocked: boolean;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
-// Chapter interface
+interface Fiction {
+  title: string;
+  description: string;
+  authorId: string; // Reference to User._id
+  tags: string[]; // Array of tag_ids
+  stats: FictionStats;
+  status: FictionStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  type: FictionType; // Distinguishes between free and premium fictions
+}
+
 interface Chapter {
-  workId: string; // Reference to Work._id
+  workId: string; // Reference to Fiction._id
   chapterNumber: number;
   title: string;
-  content: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Tag interface
 interface Tag {
   name: string;
+  code: string;
   description?: string;
   workCount: number;
 }
 
-// Rating interface
 interface Rating {
   userId: string; // Reference to User._id
-  workId: string; // Reference to Work._id
+  workId: string; // Reference to Fiction._id
   score: number;
   review?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Comment interface
 interface Comment {
   userId: string; // Reference to User._id
-  workId: string; // Reference to Work._id
+  workId: string; // Reference to Fiction._id
   chapterId?: string; // Optional: Reference to Chapter._id
   content: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Forum interface
 interface Forum {
   title: string;
   description?: string;
@@ -104,28 +130,72 @@ interface Forum {
   updatedAt: Date;
 }
 
-// Post interface
+interface PostContent {
+  title: string;
+  content: string;
+}
+
 interface Post {
   forumId: string; // Reference to Forum._id
+  userId: string; // Reference to User._id
+  content: PostContent;
+  commentCount: number;
+  recentComments: ForumComment[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface ForumComment {
+  postId: string; // Reference to Post._id
   userId: string; // Reference to User._id
   content: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Notification interface
+interface NotificationContent {
+  title: string;
+  content: string;
+}
+
 interface Notification {
   userId: string; // Reference to User._id
-  content: string;
+  content: NotificationContent;
   type: NotificationType;
+  link: string;
   isRead: boolean;
   createdAt: Date;
 }
 
-// Follow interface
 interface Follow {
   followerId: string; // Reference to User._id
   followedId: string; // Reference to User._id
+  createdAt: Date;
+}
+
+interface Transaction {
+  userId: string; // Reference to User._id
+  type: TransactionType;
+  amount: number;
+  status: PaymentStatus;
+  paymentMethod: PaymentMethod;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface AuthorApplication {
+  userId: string; // Reference to User._id
+  status: AuthorApplicationStatus;
+  applicationDate: Date;
+  reviewDate?: Date;
+  reviewedBy?: string; // Reference to User._id (admin)
+  notes?: string;
+}
+
+interface SearchQuery {
+  userId: string; // Reference to User._id
+  keyword?: string;
+  filters?: object; // Store advanced filters
   createdAt: Date;
 }
 
@@ -133,7 +203,7 @@ interface Follow {
 export {
   User,
   Role,
-  Work,
+  Fiction,
   Chapter,
   Tag,
   Rating,
@@ -142,4 +212,30 @@ export {
   Post,
   Notification,
   Follow,
+  Transaction,
+  AuthorApplication,
+  SearchQuery,
 };
+
+// System description
+/*
+This is an online comic reading system. The main components of the system are the comic database and
+the user community. There are 3 types of users:
+1. Regular users: can read comics, comment, follow authors, and create comments on community posts.
+2. Authors: can write, edit, delete chapters of the comics they publish.
+3. Administrators: can manage the comic database, users, and system-related issues.
+
+Fiction types:
+1. Premium: comics uploaded by authors and purchased by users to read.
+2. Free: comics uploaded by authors and free for users to read.
+
+Authors will receive money based on the number of readers of their premium-tagged fictions.
+
+Users can apply to become authors using the system's apply function.
+Administrators can approve user applications to become authors using the application approval function.
+Authors can register new comics using the system's comic publishing function.
+Authors can decide whether their fiction is free or premium using the fiction type setting function.
+The rate for premium fiction is 100,000 VND per 1000 views.
+
+There are two main query functions: keyword search and advanced filtering.
+*/
