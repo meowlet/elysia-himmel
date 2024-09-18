@@ -1,49 +1,36 @@
 import { Db, ObjectId } from "mongodb";
 import { Action, Resource } from "../util/Enum";
+import { User } from "../model/Entity";
 
 export class AuthService {
-  private _database: Db | null;
-  private _userId: string | null;
+  private database: Db;
+  private userId: string;
 
   constructor(database: Db, userId: string) {
-    this._database = database;
-    this._userId = userId;
+    this.database = database;
+    this.userId = userId;
   }
 
-  set database(database: Db) {
-    this._database = database;
-  }
+  public async getUser() {
+    const user = await this.database
+      .collection("users")
+      .findOne({ _id: new ObjectId(this.userId) });
 
-  get database(): Db {
-    if (!this._database) {
-      throw new Error("Database has not been initialized");
-    }
-    return this._database;
-  }
-
-  set userId(userId: string) {
-    this._userId = userId;
-  }
-
-  get userId(): string {
-    if (!this._userId) {
-      throw new Error("UserId has not been set");
-    }
-    return this._userId;
+    return user;
   }
 
   public async managerHasPermission(
     resource: Resource,
     action: Action
   ): Promise<boolean> {
-    if (!this._database || !this._userId) {
+    if (!this.database || !this.userId) {
       throw new Error("Database or UserId not initialized");
     }
 
-    const result = await this._database
+    const result = await this.database
       .collection("users")
       .aggregate([
-        { $match: { _id: new ObjectId(this._userId) } },
+        { $match: { _id: new ObjectId(this.userId) } },
         {
           $lookup: {
             from: "roles",
