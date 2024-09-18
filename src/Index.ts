@@ -12,10 +12,11 @@ const app = new Elysia()
   .use(ErrorPlugin)
   .use(Database)
   .get("/", () => {
-    throw new AuthorizationError("You are not authorized to view this page.");
     return "Welcome to Himmel!";
   })
   .group("/api", (app) => app.use(Application))
   .listen(3000);
 
-console.log("The app should be running on http://localhost:3000");
+console.log(
+  `The app should be running at http://${app.server?.hostname}:${app.server?.port}`
+);
