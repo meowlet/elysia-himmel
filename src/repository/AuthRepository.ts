@@ -27,7 +27,7 @@ export class AuthRepository {
         algorithm: "bcrypt",
         cost: Constant.SALT,
       }),
-      role: new ObjectId(),
+      role: new ObjectId().toString(),
       earnings: 0,
       isPremium: false,
       favoriteTags: [],
