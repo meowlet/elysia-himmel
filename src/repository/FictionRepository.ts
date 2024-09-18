@@ -255,7 +255,14 @@ export class FictionRepository {
   async deleteFiction(fictionId: string): Promise<boolean> {
     const result = await this.database
       .collection<Fiction>(Constant.FICTION_COLLECTION)
-      .deleteOne({ _id: new ObjectId(fictionId) });
+      .deleteOne({
+        _id: new ObjectId(fictionId),
+        author: new ObjectId(this.userId),
+      });
+
+    if (!result.acknowledged) {
+      throw new Error("Failed to delete fiction");
+    }
 
     return result.deletedCount === 1;
   }
