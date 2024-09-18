@@ -19,8 +19,6 @@ export const AuthPlugin = new Elysia()
     const accessToken =
       cookie.accessToken?.value || headers.authorization?.substring(7);
 
-    console.log(accessToken);
-
     if (!accessToken) {
       throw new AuthorizationError(
         "No token provided",

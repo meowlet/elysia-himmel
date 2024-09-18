@@ -25,4 +25,5 @@ export class Constant {
   static readonly UPLOAD_DIRECTORY = "uploads"; // Directory for uploaded files
   static readonly FICTION_COLLECTION = "fictions"; // Collection for fiction data
   static readonly TAG_COLLECTION = "tags"; // Collection for tag data
+  static readonly CHAPTER_COLLECTION = "chapters"; // Collection for chapter data
 }
