@@ -12,17 +12,19 @@ export const FictionModel = new Elysia().model({
     tags: t.Array(t.String()),
     status: t.Enum(FictionStatus),
     type: t.Enum(FictionType),
+    cover: t.Optional(
+      t.File({
+        type: ["image/jpeg", "image/png"],
+        maxSize: 1024 * 1024 * 5,
+        error:
+          "The cover must be a valid image (JPEG or PNG) and less than 5MB",
+      })
+    ),
   }),
   QueryFictionParams: t.Object({
     query: t.Optional(t.String()),
     author: t.Optional(t.String()),
-    tags: t.Optional(
-      t.Array(t.String(), {
-        minItems: 1,
-        uniqueItems: true,
-        error: "Tags must not be empty and must be unique",
-      })
-    ),
+    tags: t.Optional(t.Array(t.String())),
     status: t.Optional(t.Enum(FictionStatus)),
     type: t.Optional(t.Enum(FictionType)),
     createdFrom: t.Optional(t.Nullable(t.Date())),
@@ -59,5 +61,13 @@ export const FictionModel = new Elysia().model({
       })
     ),
     status: t.Optional(t.Enum(FictionStatus)),
+  }),
+
+  UploadCoverBody: t.Object({
+    cover: t.File({
+      type: ["image/jpeg", "image/png"],
+      maxSize: 1024 * 1024 * 5, // 5MB
+      error: "The cover must be a valid image (JPEG or PNG) and less than 5MB",
+    }),
   }),
 });
