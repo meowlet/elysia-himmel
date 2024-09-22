@@ -12,6 +12,9 @@ import {
 import { AuthorizationError, ForbiddenError } from "../util/Error";
 import { AuthorizationErrorType } from "../util/Enum";
 import { NotFoundError } from "elysia";
+import { StorageService } from "../service/StorageService";
+import { join } from "path";
+import sharp from "sharp";
 
 export enum SortField {
   TITLE = "title",
@@ -49,9 +52,11 @@ interface QueryFictionResult {
 
 export class FictionRepository {
   private database: Db;
+  private storageService: StorageService;
 
   constructor(private userId: string) {
     this.database = database;
+    this.storageService = new StorageService();
   }
 
   public async getCurrentUser(): Promise<WithId<User>> {
@@ -138,7 +143,8 @@ export class FictionRepository {
       ];
     }
     if (author) queryConditions.author = author;
-    if (tags && tags.length > 0) queryConditions.tags = { $all: tags };
+    if (tags && tags.length > 0)
+      queryConditions.tags = { $all: tags.map((tag) => new ObjectId(tag)) };
     if (status) queryConditions.status = status;
     if (type) queryConditions.type = type;
     if (createdFrom || createdTo) {
@@ -155,8 +161,6 @@ export class FictionRepository {
     };
 
     const skip = (page - 1) * limit;
-
-    console.log(queryConditions);
 
     const [fictions, total] = await Promise.all([
       this.database
@@ -180,7 +184,6 @@ export class FictionRepository {
       .findOne({ _id: new ObjectId(fictionId) });
   }
 
-  // Get full fiction by id
   async getFiction(fictionId: string) {
     const fiction = await this.database
       .collection<Fiction>(Constant.FICTION_COLLECTION)
@@ -413,5 +416,25 @@ export class FictionRepository {
     await this.incrementViewCount(chapter.fiction.toString());
 
     return chapter;
+  }
+
+  async uploadCover(fictionId: string, cover: File): Promise<string> {
+    const fiction = await this.getFictionById(fictionId);
+    if (!fiction) {
+      throw new NotFoundError("Fiction not found");
+    }
+
+    if (fiction.author.toString() !== this.userId) {
+      throw new ForbiddenError("You are not the author of this fiction");
+    }
+
+    const buffer = await cover.arrayBuffer();
+    const jpegBuffer = await sharp(buffer).jpeg({ quality: 80 }).toBuffer();
+
+    const path = join("fictions", fictionId, "cover.jpeg");
+    return await this.storageService.saveFile(
+      new File([jpegBuffer], "cover.jpeg", { type: "image/jpeg" }),
+      path
+    );
   }
 }
