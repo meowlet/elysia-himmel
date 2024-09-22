@@ -125,6 +125,25 @@ export const AuthController = new Elysia()
 
       const payload = await refreshJwt.verify(refreshToken);
       if (!payload) {
+        //clear cookies
+        cookie.accessToken.set({
+          value: "",
+          httpOnly: true,
+          secure: true,
+          sameSite: "strict",
+          maxAge: 0,
+          path: "/",
+        });
+
+        cookie.refreshToken.set({
+          value: "",
+          httpOnly: true,
+          secure: true,
+          sameSite: "strict",
+          maxAge: 0,
+          path: "/",
+        });
+
         throw new AuthorizationError(
           "Invalid token",
           AuthorizationErrorType.INVALID_TOKEN

@@ -22,7 +22,7 @@ export class Constant {
   static readonly POST_COLLECTION = "posts"; // Collection for post data
   static readonly COMMENT_COLLECTION = "comments"; // Collection for comment data
   static readonly BASE_URL = "http://localhost:3000"; // Base URL for the backend server
-  static readonly UPLOAD_DIRECTORY = "uploads"; // Directory for uploaded files
+  static readonly UPLOAD_DIRECTORY = "public"; // Directory for uploaded files
   static readonly FICTION_COLLECTION = "fictions"; // Collection for fiction data
   static readonly TAG_COLLECTION = "tags"; // Collection for tag data
   static readonly CHAPTER_COLLECTION = "chapters"; // Collection for chapter data
