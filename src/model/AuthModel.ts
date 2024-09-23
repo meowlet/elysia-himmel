@@ -4,6 +4,7 @@ export const AuthModel = new Elysia().model({
   SignInBody: t.Object({
     identifier: t.String(),
     password: t.String(),
+    rememberMe: t.Boolean({ default: false }),
   }),
   SignUpBody: t.Object({
     email: t.String({
