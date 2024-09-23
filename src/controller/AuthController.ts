@@ -48,9 +48,14 @@ export const AuthController = new Elysia()
     "/sign-in",
     async ({ body, repository, accessJwt, refreshJwt, cookie }) => {
       const user = await repository.signIn(body.identifier, body.password);
+      const rememberMe = body.rememberMe || false;
 
       const accessToken = await accessJwt.sign({ sub: (user as any)._id });
-      const refreshToken = await refreshJwt.sign({ sub: (user as any)._id });
+
+      let refreshToken = "";
+      if (rememberMe) {
+        refreshToken = await refreshJwt.sign({ sub: (user as any)._id });
+      }
 
       cookie.accessToken.set({
         value: accessToken,
@@ -62,20 +67,37 @@ export const AuthController = new Elysia()
       });
 
       cookie.refreshToken.set({
-        value: refreshToken,
+        value: "",
         httpOnly: true,
         secure: true,
         sameSite: "strict",
-        maxAge: Constant.REFRESH_TOKEN_EXPIRY_MS,
+        maxAge: 0,
         path: "/",
       });
 
+      if (rememberMe) {
+        cookie.refreshToken.set({
+          value: refreshToken,
+          httpOnly: true,
+          secure: true,
+          sameSite: "strict",
+          maxAge: Constant.REFRESH_TOKEN_EXPIRY_MS,
+          path: "/",
+        });
+
+        return createSuccessResponse<{
+          accessToken: string;
+          refreshToken: string;
+        }>("User signed in successfully", {
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+        });
+      }
+
       return createSuccessResponse<{
         accessToken: string;
-        refreshToken: string;
       }>("User signed in successfully", {
         accessToken: accessToken,
-        refreshToken: refreshToken,
       });
     },
     {
