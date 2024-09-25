@@ -130,7 +130,7 @@ export class FictionRepository {
       sortBy = SortField.CREATED_AT,
       sortOrder = SortOrder.DESC,
       page = 1,
-      limit = 10,
+      limit = 12,
       minViewCount,
       minRating,
     } = params;
@@ -156,9 +156,14 @@ export class FictionRepository {
       queryConditions["stats.viewCount"] = { $gte: minViewCount };
     if (minRating) queryConditions["stats.averageRating"] = { $gte: minRating };
 
-    const sort: { [key in SortField]?: 1 | -1 } = {
-      [sortBy]: sortOrder === SortOrder.DESC ? -1 : 1,
-    };
+    let sort: { [key: string]: 1 | -1 } = {};
+    if (sortBy === SortField.VIEW_COUNT) {
+      sort["stats.viewCount"] = sortOrder === SortOrder.DESC ? -1 : 1;
+    } else if (sortBy === SortField.AVERAGE_RATING) {
+      sort["stats.averageRating"] = sortOrder === SortOrder.DESC ? -1 : 1;
+    } else {
+      sort[sortBy] = sortOrder === SortOrder.DESC ? -1 : 1;
+    }
 
     const skip = (page - 1) * limit;
 
