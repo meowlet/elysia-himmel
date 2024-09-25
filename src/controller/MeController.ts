@@ -87,12 +87,10 @@ export const MeController = new Elysia()
     "/purchase-premium",
     async ({ user, repository, body }) => {
       if (user.isPremium) {
-        return createSuccessResponse("You already have premium", undefined);
+        throw new Error("You already have premium");
       }
-
       const result = await repository.purchasePremium(body.duration);
-
-      if (result.status === "success" && result.paymentUrl) {
+      if (result.paymentUrl) {
         return createSuccessResponse("Redirect to payment", {
           redirectUrl: result.paymentUrl,
         });

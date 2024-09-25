@@ -101,12 +101,12 @@ export const PaymentController = new Elysia()
         const amount = body.amount!;
         const transId = body.transId!;
 
-        // Cập nhật trạng thái giao dịch trong cơ sở dữ liệu
-        await paymentService.updateTransactionStatus(
-          orderId,
-          "success",
-          transId.toString()
-        );
+        // // Cập nhật trạng thái giao dịch trong cơ sở dữ liệu
+        // await paymentService.updateTransactionStatus(
+        //   orderId,
+        //   "success",
+        //   transId.toString()
+        // );
 
         // Cập nhật trạng thái premium cho người dùng
         const userId = await paymentService.getUserIdFromOrderId(orderId);

@@ -37,8 +37,7 @@ enum PaymentMethod {
   MOMO = "momo",
   // Add more payment methods as needed
 }
-
-enum TransactionType {
+export enum TransactionType {
   PREMIUM_SUBSCRIPTION = "premium_subscription",
   AUTHOR_PAYOUT = "author_payout",
 }
