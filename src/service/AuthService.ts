@@ -3,13 +3,7 @@ import { Action, Resource } from "../util/Enum";
 import { User } from "../model/Entity";
 
 export class AuthService {
-  private database: Db;
-  private userId: string;
-
-  constructor(database: Db, userId: string) {
-    this.database = database;
-    this.userId = userId;
-  }
+  constructor(private database: Db, private userId: string) {}
 
   public async getUser() {
     const user = await this.database
