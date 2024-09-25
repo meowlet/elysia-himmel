@@ -1,6 +1,6 @@
 import Elysia, { t } from "elysia";
 
-export enum Duration {
+export enum PremiumDuration {
   ONE_MONTH = "ONE_MONTH",
   THREE_MONTH = "THREE_MONTH",
   SIX_MONTH = "SIX_MONTH",
@@ -35,7 +35,7 @@ export const MeModel = new Elysia().model({
     }),
   }),
   PurchasePremiumBody: t.Object({
-    duration: t.Enum(Duration, {
+    duration: t.Enum(PremiumDuration, {
       error: "Invalid duration",
     }),
   }),

@@ -1,6 +1,6 @@
 import { Db, ObjectId, WithId } from "mongodb";
 import { AuthService } from "../service/AuthService";
-import { User } from "../model/Entity";
+import { TransactionType, User } from "../model/Entity";
 import { Constant } from "../util/Constant";
 import { database } from "../database/Database";
 import { AuthorizationError } from "../util/Error";
@@ -9,8 +9,8 @@ import EmailService from "../service/EmailService";
 import { StorageService } from "../service/StorageService";
 import { join } from "path";
 import { ValidationError } from "elysia";
-import { Duration } from "../model/MeModel";
-import { PaymentService } from "../service/PaymentService";
+import { PremiumDuration } from "../model/MeModel";
+import { PaymentService, PremiumOrderInfo } from "../service/PaymentService";
 
 export class MeRepository {
   private database: Db;
@@ -27,41 +27,55 @@ export class MeRepository {
     this.emailService = new EmailService();
   }
 
-  public async purchasePremium(duration: Duration): Promise<{
-    status: "success" | "error";
+  public async purchasePremium(duration: PremiumDuration): Promise<{
     paymentUrl?: string;
   }> {
-    const user = await this.authService.getUser();
-
     const amount = this.getPremiumAmount(duration);
 
     const humanReadableDuration = {
-      [Duration.ONE_MONTH]: "1 month",
-      [Duration.THREE_MONTH]: "3 months",
-      [Duration.SIX_MONTH]: "6 months",
-      [Duration.ONE_YEAR]: "1 year",
+      [PremiumDuration.ONE_MONTH]: "1 month",
+      [PremiumDuration.THREE_MONTH]: "3 months",
+      [PremiumDuration.SIX_MONTH]: "6 months",
+      [PremiumDuration.ONE_YEAR]: "1 year",
     };
 
-    const orderInfo = `Upgrade to Premium - ${humanReadableDuration[duration]}`;
+    const orderInfo: PremiumOrderInfo = {
+      userId: this.userId,
+      message: `Purchase ${humanReadableDuration[duration]} premium plan`,
+      duration,
+      type: TransactionType.PREMIUM_SUBSCRIPTION,
+    };
 
     try {
       const paymentUrl = await this.paymentService.createMoMoPayment(
         amount,
-        orderInfo
+        orderInfo,
+        {
+          redirectUrl: Constant.FE_URL + "/payment/momo-callback",
+        },
+        [
+          {
+            name: "One month premium subscription",
+            quantity: 1,
+            price: Number(amount),
+            currency: "VND",
+            totalPrice: Number(amount),
+          },
+        ]
       );
-      return { status: "success", paymentUrl };
+      return { paymentUrl };
     } catch (error) {
       console.error("Error creating payment request:", error);
-      return { status: "error" };
+      return { paymentUrl: undefined };
     }
   }
 
-  private getPremiumAmount(duration: Duration): string {
+  private getPremiumAmount(duration: PremiumDuration): string {
     const amounts = {
-      [Duration.ONE_MONTH]: "5000",
-      [Duration.THREE_MONTH]: "14000",
-      [Duration.SIX_MONTH]: "26000",
-      [Duration.ONE_YEAR]: "50000",
+      [PremiumDuration.ONE_MONTH]: "5000",
+      [PremiumDuration.THREE_MONTH]: "14000",
+      [PremiumDuration.SIX_MONTH]: "26000",
+      [PremiumDuration.ONE_YEAR]: "50000",
     };
     return (
       amounts[duration] ||
