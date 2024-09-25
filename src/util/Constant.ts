@@ -6,6 +6,7 @@ export class Constant {
   static readonly PORT = 3000; // Port for the backend server
   static readonly BE_URL = "http://localhost:3000"; // URL for the backend
   static readonly FE_URL = "http://localhost:3001"; // URL for the frontend
+  static readonly MOMO_ENDPOINT = "https://test-payment.momo.vn/v2/gateway/api"; // URL for MoMo API
 
   // Security settings
   static readonly SALT = 8; // Salt rounds for bcrypt hashing
@@ -26,4 +27,13 @@ export class Constant {
   static readonly FICTION_COLLECTION = "fictions"; // Collection for fiction data
   static readonly TAG_COLLECTION = "tags"; // Collection for tag data
   static readonly CHAPTER_COLLECTION = "chapters"; // Collection for chapter data
+
+  // Payment configuration
+  static readonly PAYMENT_CURRENCY = "VND"; // Currency for payment
+  static readonly STORE_NAME = "Himmel";
+
+  // Momo secret key
+  static readonly MOMO_PARTNER_CODE = Bun.env.MOMO_PARTNER_CODE || "";
+  static readonly MOMO_ACCESS_KEY = Bun.env.MOMO_ACCESS_KEY || "";
+  static readonly MOMO_SECRET_KEY = Bun.env.MOMO_SECRET_KEY || "";
 }
