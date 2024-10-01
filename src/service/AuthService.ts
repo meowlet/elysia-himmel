@@ -1,14 +1,19 @@
 import { Db, ObjectId } from "mongodb";
 import { Action, Resource } from "../util/Enum";
 import { User } from "../model/Entity";
+import { NotFoundError } from "elysia";
 
 export class AuthService {
   constructor(private database: Db, private userId: string) {}
 
   public async getUser() {
     const user = await this.database
-      .collection("users")
+      .collection<User>("users")
       .findOne({ _id: new ObjectId(this.userId) });
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
 
     return user;
   }
