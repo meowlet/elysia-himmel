@@ -26,6 +26,25 @@ export const AuthModel = new Elysia().model({
         "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
     }),
   }),
+  GoogleAuthBody: t.Object({
+    token: t.String(),
+  }),
+  SetUsernameBody: t.Object({
+    userId: t.String(),
+    username: t.String({
+      minLength: 4,
+      maxLength: 32,
+      pattern: "^[a-zA-Z0-9_]+$",
+      error: "Username must be alphanumeric and contain underscores only",
+    }),
+    fullName: t.Optional(
+      t.String({
+        minLength: 4,
+        maxLength: 32,
+        error: "Full name must be alphanumeric and contain underscores only",
+      })
+    ),
+  }),
   ForgotPasswordBody: t.Object({
     email: t.String({
       format: "email",

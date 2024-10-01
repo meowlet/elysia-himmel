@@ -8,6 +8,7 @@ import { Constant } from "../util/Constant";
 import { AuthorizationErrorType } from "../util/Enum";
 import { AuthorizationError, ForbiddenError } from "../util/Error";
 import { AuthPlugin } from "../plugin/AuthPlugin";
+import { OAuth2Client } from "google-auth-library";
 
 export const AuthController = new Elysia()
   .use(AuthModel)
@@ -50,12 +51,14 @@ export const AuthController = new Elysia()
       const user = await repository.signIn(body.identifier, body.password);
       const rememberMe = body.rememberMe || false;
 
-      const accessToken = await accessJwt.sign({ sub: (user as any)._id });
+      const accessToken = await accessJwt.sign({ sub: user._id.toString() });
 
       let refreshToken = "";
       if (rememberMe) {
-        refreshToken = await refreshJwt.sign({ sub: (user as any)._id });
+        refreshToken = await refreshJwt.sign({ sub: user._id.toString() });
       }
+
+      console.log(accessToken, refreshToken);
 
       cookie.accessToken.set({
         value: accessToken,
@@ -209,5 +212,84 @@ export const AuthController = new Elysia()
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
       });
+    }
+  )
+  .post(
+    "/google-auth",
+    async ({ body, repository, accessJwt, refreshJwt, cookie }) => {
+      const client = new OAuth2Client(Bun.env.GOOGLE_CLIENT_ID);
+      const ticket = await client.verifyIdToken({
+        idToken: body.token,
+        audience: Bun.env.GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+
+      if (!payload) {
+        throw new AuthorizationError(
+          "Invalid Google token",
+          AuthorizationErrorType.INVALID_TOKEN
+        );
+      }
+
+      const { sub: googleId, email, name } = payload;
+      const { user, isNewUser } = await repository.signInOrSignUpWithGoogle(
+        googleId,
+        email!,
+        name!
+      );
+
+      const accessToken = await accessJwt.sign({ sub: user._id.toString() });
+      const refreshToken = await refreshJwt.sign({ sub: user._id.toString() });
+
+      cookie.accessToken.set({
+        value: accessToken,
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        maxAge: Constant.ACCESS_TOKEN_EXPIRY_MS,
+        path: "/",
+      });
+
+      cookie.refreshToken.set({
+        value: refreshToken,
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        maxAge: Constant.REFRESH_TOKEN_EXPIRY_MS,
+        path: "/",
+      });
+
+      console.log(accessToken, refreshToken, isNewUser);
+
+      return createSuccessResponse<{
+        accessToken: string;
+        refreshToken: string;
+        isNewUser: boolean;
+      }>(
+        isNewUser
+          ? "Sign up successfully with Google"
+          : "Sign in successfully with Google",
+        {
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          isNewUser: isNewUser,
+        }
+      );
+    },
+    {
+      body: "GoogleAuthBody",
+    }
+  )
+  .post(
+    "/set-username",
+    async ({ body, repository }) => {
+      await repository.setUsername(body.userId, body.username, body.fullName);
+      return createSuccessResponse<void>(
+        "Đặt tên người dùng thành công",
+        undefined
+      );
+    },
+    {
+      body: "SetUsernameBody",
     }
   );

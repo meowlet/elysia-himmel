@@ -1,4 +1,4 @@
-import { Db, ObjectId } from "mongodb";
+import { Db, ObjectId, WithId } from "mongodb";
 import { Constant } from "../util/Constant";
 import { User } from "../model/Entity";
 import { AuthService } from "../service/AuthService";
@@ -47,7 +47,7 @@ export class AuthRepository {
       });
   }
 
-  public async signIn(identifier: string, password: string): Promise<User> {
+  public async signIn(identifier: string, password: string) {
     const existingUser = await this.database
       .collection<User>(Constant.USER_COLLECTION)
       .findOne({
@@ -63,7 +63,7 @@ export class AuthRepository {
 
     const isPasswordCorrect = await Bun.password.verify(
       password,
-      existingUser.passwordHash
+      existingUser.passwordHash!
     );
 
     if (!isPasswordCorrect) {
@@ -130,7 +130,7 @@ export class AuthRepository {
 
     const isPasswordCorrect = await Bun.password.verify(
       currentPassword,
-      user.passwordHash
+      user.passwordHash!
     );
 
     if (!isPasswordCorrect) {
@@ -228,6 +228,81 @@ export class AuthRepository {
           passwordHash: newPasswordHash,
           passwordResetToken: null,
           passwordResetExpires: null,
+        },
+      }
+    );
+  }
+
+  public async signInOrSignUpWithGoogle(
+    googleId: string,
+    email: string,
+    fullName: string
+  ): Promise<{ user: WithId<User>; isNewUser: boolean }> {
+    let user = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne({ googleId: googleId });
+
+    if (user) {
+      // User already exists, return to sign in
+      return { user, isNewUser: false };
+    }
+
+    // Check if email already exists
+    user = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne({ email: email });
+
+    if (user) {
+      // Email already exists, update googleId and return
+      await this.database
+        .collection<User>(Constant.USER_COLLECTION)
+        .updateOne({ _id: user._id }, { $set: { googleId: googleId } });
+      return { user: { ...user, googleId }, isNewUser: false };
+    }
+
+    // Create new user
+    const newUser: User = {
+      googleId: googleId,
+      email: email,
+      fullName: fullName,
+      role: new ObjectId().toString(),
+      earnings: 0,
+      isPremium: false,
+      favoriteTags: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const result = await this.database
+      .collection(Constant.USER_COLLECTION)
+      .insertOne(newUser);
+
+    return { user: { ...newUser, _id: result.insertedId }, isNewUser: true };
+  }
+
+  public async setUsername(
+    userId: string,
+    username: string,
+    fullName?: string
+  ): Promise<void> {
+    const existingUser = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne({ username: username });
+
+    if (existingUser) {
+      throw new ConflictError(
+        "The username is already taken",
+        ConflictErrorType.DUPLICATE_ENTRY
+      );
+    }
+
+    await this.database.collection<User>(Constant.USER_COLLECTION).updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          username: username,
+          fullName: fullName && fullName,
+          updatedAt: new Date(),
         },
       }
     );

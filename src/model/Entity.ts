@@ -45,10 +45,11 @@ export enum TransactionType {
 
 // Interfaces
 interface User {
-  username: string;
+  googleId?: string;
+  username?: string;
   fullName?: string;
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
   role: string | ObjectId; // Reference to Role._id
   authorApplicationStatus?: AuthorApplicationStatus;
   earnings: number;
@@ -116,8 +117,17 @@ interface Rating {
 interface Comment {
   user: string | ObjectId; // Reference to User._id
   fiction: string | ObjectId; // Reference to Fiction._id
-  chapter?: string | ObjectId; // Optional: Reference to Chapter._id
   content: string;
+  likes: string[] | ObjectId[]; // Array of user_ids
+  dislikes: string[] | ObjectId[]; // Array of user_ids
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Rating {
+  user: string | ObjectId; // Reference to User._id
+  fiction: string | ObjectId; // Reference to Fiction._id
+  score: number;
   createdAt: Date;
   updatedAt: Date;
 }
