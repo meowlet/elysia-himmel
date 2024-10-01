@@ -74,7 +74,10 @@ export class FictionRepository {
     return currentUser;
   }
 
-  async createFiction(fictionData: Partial<Fiction>): Promise<WithId<Fiction>> {
+  async createFiction(
+    fictionData: Partial<Fiction>,
+    fictionCover?: File
+  ): Promise<WithId<Fiction>> {
     const newFiction: Fiction = {
       ...fictionData,
       author: new ObjectId(this.userId),
@@ -105,6 +108,17 @@ export class FictionRepository {
 
     if (!result.acknowledged) {
       throw new Error("Failed to create fiction");
+    }
+
+    if (fictionCover) {
+      const buffer = await fictionCover.arrayBuffer();
+      const jpegBuffer = await sharp(buffer).jpeg({ quality: 80 }).toBuffer();
+
+      const path = join("fictions", result.insertedId.toString(), "cover.jpeg");
+      await this.storageService.saveFile(
+        new File([jpegBuffer], "cover.jpeg", { type: "image/jpeg" }),
+        path
+      );
     }
 
     return { ...newFiction, _id: result.insertedId };
@@ -211,6 +225,14 @@ export class FictionRepository {
           },
         },
         {
+          $lookup: {
+            from: Constant.CHAPTER_COLLECTION,
+            localField: "_id",
+            foreignField: "fiction",
+            as: "chapters",
+          },
+        },
+        {
           $project: {
             _id: 1,
             title: 1,
@@ -222,6 +244,7 @@ export class FictionRepository {
             stats: 1,
             createdAt: 1,
             updatedAt: 1,
+            chapters: 1,
           },
         },
       ])
@@ -304,123 +327,6 @@ export class FictionRepository {
           },
         }
       );
-  }
-
-  async createChapter(
-    fictionId: string,
-    chapterData: Partial<Chapter>
-  ): Promise<WithId<Chapter>> {
-    const fiction = await this.getFictionById(fictionId);
-    if (!fiction) {
-      throw new NotFoundError("Fiction not found");
-    }
-
-    if (fiction.author.toString() !== this.userId) {
-      throw new ForbiddenError("You are not the author of this fiction");
-    }
-
-    const newChapter: Chapter = {
-      fiction: new ObjectId(fictionId),
-      chapterNumber: chapterData.chapterNumber || 0,
-      title: chapterData.title || "",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    const result = await this.database
-      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
-      .insertOne(newChapter);
-
-    if (!result.acknowledged) {
-      throw new Error("Failed to create new chapter");
-    }
-
-    return { ...newChapter, _id: result.insertedId };
-  }
-
-  async updateChapter(
-    chapterId: string,
-    updateData: Partial<Chapter>
-  ): Promise<Chapter | null> {
-    const chapter = await this.database
-      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
-      .findOne({ _id: new ObjectId(chapterId) });
-
-    if (!chapter) {
-      throw new NotFoundError("Chapter not found");
-    }
-
-    const fiction = await this.getFictionById(chapter.fiction.toString());
-    if (!fiction) {
-      throw new NotFoundError("Fiction not found");
-    }
-
-    if (fiction.author.toString() !== this.userId) {
-      throw new ForbiddenError("You are not the author of this fiction");
-    }
-
-    const result = await this.database
-      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
-      .findOneAndUpdate(
-        { _id: new ObjectId(chapterId) },
-        { $set: { ...updateData, updatedAt: new Date() } },
-        { returnDocument: "after" }
-      );
-
-    if (!result) {
-      throw new NotFoundError("Chapter not found");
-    }
-
-    return result;
-  }
-
-  async deleteChapter(chapterId: string): Promise<boolean> {
-    const chapter = await this.database
-      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
-      .findOne({ _id: new ObjectId(chapterId) });
-
-    if (!chapter) {
-      throw new NotFoundError("Chapter not found");
-    }
-
-    const fiction = await this.getFictionById(chapter.fiction.toString());
-    if (!fiction) {
-      throw new NotFoundError("Fiction not found");
-    }
-
-    if (fiction.author.toString() !== this.userId) {
-      throw new ForbiddenError("You are not the author of this fiction");
-    }
-
-    const result = await this.database
-      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
-      .deleteOne({ _id: new ObjectId(chapterId) });
-
-    return result.deletedCount === 1;
-  }
-
-  async getChapters(fictionId: string): Promise<Chapter[]> {
-    const chapters = await this.database
-      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
-      .find({ fiction: new ObjectId(fictionId) })
-      .sort({ chapterNumber: 1 })
-      .toArray();
-
-    return chapters;
-  }
-
-  async getChapter(chapterId: string): Promise<Chapter | null> {
-    const chapter = await this.database
-      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
-      .findOne({ _id: new ObjectId(chapterId) });
-
-    if (!chapter) {
-      throw new NotFoundError("Chapter not found");
-    }
-
-    await this.incrementViewCount(chapter.fiction.toString());
-
-    return chapter;
   }
 
   async uploadCover(fictionId: string, cover: File): Promise<string> {

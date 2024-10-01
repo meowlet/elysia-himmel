@@ -1,8 +1,8 @@
-import Elysia from "elysia";
+import Elysia, { NotFoundError } from "elysia";
 import { AuthPlugin } from "../plugin/AuthPlugin";
 
 import { join } from "path";
-import { createSuccessResponse } from "../model/Response";
+import { createErrorResponse, createSuccessResponse } from "../model/Response";
 import { FictionModel } from "../model/FictionModel";
 import { FictionRepository } from "../repository/FictionRepository";
 
@@ -35,10 +35,14 @@ export const FictionController = new Elysia()
   )
   .get(
     "/:fictionId/cover",
-    async ({ params, repository }) => {
-      return Bun.file(
+    async ({ params }) => {
+      const fictionCover = Bun.file(
         join("public", "fictions", params.fictionId, "cover.jpeg")
       );
+      if (!(await fictionCover.exists())) {
+        throw new NotFoundError("Fiction cover not found");
+      }
+      return fictionCover;
     },
     {
       params: "FictionIdParams",
@@ -54,11 +58,7 @@ export const FictionController = new Elysia()
     "/create",
     async ({ body, repository }) => {
       const { cover, ...fictionData } = body;
-      const newFiction = await repository.createFiction(fictionData);
-
-      if (cover) {
-        await repository.uploadCover(newFiction._id.toString(), cover);
-      }
+      const newFiction = await repository.createFiction(fictionData, cover);
 
       return createSuccessResponse("Fiction created successfully", newFiction);
     },

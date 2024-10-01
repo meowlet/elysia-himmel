@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { Action, Resource } from "../util/Enum";
+import { PremiumDuration } from "./MeModel";
 
 // Enums
 enum NotificationType {
@@ -89,7 +90,8 @@ interface Fiction {
 
 interface Chapter {
   fiction: string | ObjectId; // Reference to Fiction._id
-  chapterNumber: number;
+  chapterIndex: number;
+  pageCount: number;
   title: string;
   createdAt: Date;
   updatedAt: Date;
@@ -173,11 +175,15 @@ interface Follow {
 }
 
 interface Transaction {
-  user: string | ObjectId; // Reference to User._id
-  type: TransactionType;
+  requestId: string;
+  user: string | ObjectId;
   amount: number;
+  type: TransactionType;
+  orderInfo: string;
   status: PaymentStatus;
-  paymentMethod: PaymentMethod;
+  orderId: string;
+  premiumDuration?: PremiumDuration;
+  authorId?: string | ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
