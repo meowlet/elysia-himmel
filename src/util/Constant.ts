@@ -7,6 +7,9 @@ export class Constant {
   static readonly BE_URL = "http://localhost:3000"; // URL for the backend
   static readonly FE_URL = "http://localhost:3001"; // URL for the frontend
   static readonly MOMO_ENDPOINT = "https://test-payment.momo.vn/v2/gateway/api"; // URL for MoMo API
+  static readonly MOMO_IPN_URL = "http://3.0.91.74:3002/momo-payment-process"; // URL for MoMo IPN
+  static readonly MOMO_REDIRECT_URL =
+    "https://test-payment.momo.vn/v2/gateway/api/confirm-payment"; // URL for MoMo redirect
 
   // Security settings
   static readonly SALT = 8; // Salt rounds for bcrypt hashing

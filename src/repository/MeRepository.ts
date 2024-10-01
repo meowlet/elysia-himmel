@@ -27,9 +27,7 @@ export class MeRepository {
     this.emailService = new EmailService();
   }
 
-  public async purchasePremium(duration: PremiumDuration): Promise<{
-    paymentUrl?: string;
-  }> {
+  public async getPaymentUrl(duration: PremiumDuration): Promise<string> {
     const amount = this.getPremiumAmount(duration);
 
     const humanReadableDuration = {
@@ -46,28 +44,22 @@ export class MeRepository {
       type: TransactionType.PREMIUM_SUBSCRIPTION,
     };
 
-    try {
-      const paymentUrl = await this.paymentService.createMoMoPayment(
-        amount,
-        orderInfo,
+    return await this.paymentService.createMoMoPayment(
+      amount,
+      orderInfo,
+      {
+        lang: "en",
+      },
+      [
         {
-          redirectUrl: Constant.FE_URL + "/payment/momo-callback",
+          name: "One month premium subscription",
+          quantity: 1,
+          price: Number(amount),
+          currency: Constant.PAYMENT_CURRENCY,
+          totalPrice: Number(amount),
         },
-        [
-          {
-            name: "One month premium subscription",
-            quantity: 1,
-            price: Number(amount),
-            currency: "VND",
-            totalPrice: Number(amount),
-          },
-        ]
-      );
-      return { paymentUrl };
-    } catch (error) {
-      console.error("Error creating payment request:", error);
-      return { paymentUrl: undefined };
-    }
+      ]
+    );
   }
 
   private getPremiumAmount(duration: PremiumDuration): string {

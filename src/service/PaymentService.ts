@@ -41,55 +41,135 @@ export class PaymentService {
   async createMoMoPayment(
     amount: string,
     orderInfo: PremiumOrderInfo | AuthorPayoutOrderInfo,
-    options?: {
+    options: {
       redirectUrl?: string;
       ipnUrl?: string;
       lang?: string;
-    },
-    paymentItems?: PaymentItem[]
+    } = {},
+    paymentItems: PaymentItem[] = []
   ): Promise<string> {
     const orderId = new ObjectId().toString();
     const requestId = new ObjectId().toString();
-    const redirectUrl =
-      options?.redirectUrl || Constant.FE_URL + "/payment/momo-callback";
-    const ipnUrl = options?.ipnUrl || Constant.BE_URL + "/api/payment/momo-ipn";
+
+    const {
+      redirectUrl = Constant.MOMO_REDIRECT_URL,
+      ipnUrl = Constant.MOMO_IPN_URL,
+      lang = "vi",
+    } = options;
+
+    const requestBody = this.createMoMoRequestBody({
+      amount,
+      orderId,
+      requestId,
+      redirectUrl,
+      ipnUrl,
+      orderInfo: orderInfo.message,
+      items: paymentItems,
+      lang,
+    });
+
+    console.log(orderId);
+
+    const payUrl = await this.sendMoMoRequest(requestBody);
+    await this.saveTransaction(orderId, requestId, amount, orderInfo);
+    return payUrl;
+  }
+
+  private createMoMoRequestBody(params: {
+    amount: string;
+    orderId: string;
+    requestId: string;
+    redirectUrl: string;
+    ipnUrl: string;
+    orderInfo: string;
+    items: PaymentItem[];
+    lang: string;
+  }): any {
+    const {
+      amount,
+      orderId,
+      requestId,
+      redirectUrl,
+      ipnUrl,
+      orderInfo,
+      items,
+      lang,
+    } = params;
     const requestType = "captureWallet";
-    const items = paymentItems || [];
-    const lang = options?.lang || "vi";
+    const extraData = "";
+    const storeName = Constant.STORE_NAME;
 
     const rawSignature = this.createRawSignature({
       accessKey: Constant.MOMO_ACCESS_KEY,
       amount,
       ipnUrl,
       orderId,
-      orderInfo: orderInfo.message,
+      orderInfo,
       partnerCode: Constant.MOMO_PARTNER_CODE,
       redirectUrl,
       requestId,
       requestType,
+      extraData,
     });
 
     const signature = this.createSignature(rawSignature);
 
-    const requestBody = {
+    return {
       partnerCode: Constant.MOMO_PARTNER_CODE,
       accessKey: Constant.MOMO_ACCESS_KEY,
       requestId,
+      storeName,
       amount,
       orderId,
-      orderInfo: orderInfo.message,
+      orderInfo,
       redirectUrl,
       ipnUrl,
       items,
       requestType,
       signature,
       lang,
+      extraData,
     };
+  }
 
-    const payUrl = await this.sendMoMoRequest(requestBody);
+  public createRawSignature(params: Record<string, string>): string {
+    return Object.entries(params)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value}`)
+      .join("&");
+  }
+
+  public createSignature(rawSignature: string): string {
+    return crypto
+      .createHmac("sha256", Constant.MOMO_SECRET_KEY)
+      .update(rawSignature)
+      .digest("hex");
+  }
+
+  private async sendMoMoRequest(data: any): Promise<string> {
+    const response = await fetch(Constant.MOMO_ENDPOINT + "/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const responseData = await response.json();
+
+    if (responseData.payUrl) {
+      return responseData.payUrl;
+    }
+    throw new Error("Failed to create MoMo payment");
+  }
+
+  private async saveTransaction(
+    orderId: string,
+    requestId: string,
+    amount: string,
+    orderInfo: PremiumOrderInfo | AuthorPayoutOrderInfo
+  ): Promise<void> {
     await this.database.collection(Constant.TRANSACTION_COLLECTION).insertOne({
-      userId: orderInfo.userId,
+      user: new ObjectId(orderInfo.userId),
       amount,
+      requestId,
       type: orderInfo.type,
       orderInfo: orderInfo.message,
       status: PaymentStatus.PENDING,
@@ -99,60 +179,6 @@ export class PaymentService {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    return payUrl;
-  }
-
-  private createRawSignature(params: Record<string, string>): string {
-    return Object.entries(params)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${value}`)
-      .join("&");
-  }
-
-  private createSignature(rawSignature: string): string {
-    return crypto
-      .createHmac("sha256", Constant.MOMO_SECRET_KEY)
-      .update(rawSignature)
-      .digest("hex");
-  }
-
-  private async sendMoMoRequest(data: {
-    partnerCode: string;
-    accessKey: string;
-    requestId: string;
-    amount: string;
-    orderId: string;
-    orderInfo: string;
-    redirectUrl: string;
-    ipnUrl: string;
-    items: PaymentItem[];
-    requestType: string;
-    extraData?: string;
-    signature: string;
-    lang?: string;
-  }): Promise<any> {
-    try {
-      const response = await fetch(Constant.MOMO_ENDPOINT + "/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      const responseData = await response.json();
-
-      console.log(JSON.stringify(data));
-
-      if (responseData.payUrl) {
-        return responseData.payUrl;
-      } else {
-        throw new Error("Failed to create MoMo payment");
-      }
-    } catch (error) {
-      console.error("Failed to create MoMo payment:", error);
-      throw new Error("Failed to create MoMo payment");
-    }
   }
 
   async updateTransactionStatus(orderId: string, status: PaymentStatus) {
