@@ -16,7 +16,6 @@ export const ErrorPlugin = new Elysia()
     })
   )
   .onError({ as: "global" }, ({ code, error, set }) => {
-    console.error(error);
     switch (code) {
       case "ConflictError": {
         set.status = 409;
