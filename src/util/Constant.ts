@@ -30,6 +30,7 @@ export class Constant {
   static readonly FICTION_COLLECTION = "fictions"; // Collection for fiction data
   static readonly TAG_COLLECTION = "tags"; // Collection for tag data
   static readonly CHAPTER_COLLECTION = "chapters"; // Collection for chapter data
+  static readonly RATING_COLLECTION = "ratings"; // Collection for rating data
 
   // Payment configuration
   static readonly PAYMENT_CURRENCY = "VND"; // Currency for payment
@@ -39,4 +40,8 @@ export class Constant {
   static readonly MOMO_PARTNER_CODE = Bun.env.MOMO_PARTNER_CODE || "";
   static readonly MOMO_ACCESS_KEY = Bun.env.MOMO_ACCESS_KEY || "";
   static readonly MOMO_SECRET_KEY = Bun.env.MOMO_SECRET_KEY || "";
+
+  // Google secret key
+  static readonly GOOGLE_CLIENT_ID = Bun.env.GOOGLE_CLIENT_ID || "";
+  static readonly GOOGLE_CLIENT_SECRET = Bun.env.GOOGLE_CLIENT_SECRET || "";
 }
