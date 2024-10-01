@@ -75,9 +75,9 @@ export const MeController = new Elysia()
   )
   .post(
     "/avatar",
-    async ({ body, user, repository }) => {
+    async ({ body, repository }) => {
       await repository.saveAvatar(body.avatar);
-      return createSuccessResponse("Change avatar successfully", user);
+      return createSuccessResponse("Change avatar successfully", null);
     },
     {
       body: "ChangeAvatarBody",
@@ -89,19 +89,10 @@ export const MeController = new Elysia()
       if (user.isPremium) {
         throw new Error("You already have premium");
       }
-      const result = await repository.purchasePremium(body.duration);
-      if (result.paymentUrl) {
-        return createSuccessResponse("Redirect to payment", {
-          redirectUrl: result.paymentUrl,
-        });
-      } else {
-        return createErrorResponse(
-          "Failed to purchase premium",
-          "FAILED_TO_PURCHASE_PREMIUM",
-          "error",
-          "Failed to create payment request"
-        );
-      }
+      const paymentUrl = await repository.getPaymentUrl(body.duration);
+      return createSuccessResponse("Redirect to payment", {
+        paymentUrl: paymentUrl,
+      });
     },
     {
       body: "PurchasePremiumBody",
