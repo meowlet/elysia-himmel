@@ -18,19 +18,19 @@ import Elysia, { t } from "elysia";
 //     "orderInfo": "Thank you for your purchase at MoMo_test"
 // }'
 export const PaymentModel = new Elysia().model({
-  MomoRequestBody: t.Object({
-    orderType: t.Optional(t.String()),
-    amount: t.Optional(t.Number()),
-    partnerCode: t.Optional(t.String()),
-    orderId: t.Optional(t.String()),
-    extraData: t.String(),
-    signature: t.Optional(t.String()),
-    transId: t.Optional(t.Number()),
-    responseTime: t.Optional(t.Number()),
-    resultCode: t.Optional(t.Number()),
-    message: t.Optional(t.String()),
-    payType: t.Optional(t.String()),
-    requestId: t.Optional(t.String()),
+  MomoPaymentProcessRequestBody: t.Object({
+    partnerCode: t.String(),
+    orderId: t.String(),
+    requestId: t.String(),
+    amount: t.Number(),
     orderInfo: t.String(),
+    orderType: t.String(),
+    transId: t.Number(),
+    resultCode: t.Number(),
+    message: t.String(),
+    payType: t.String(),
+    responseTime: t.Number(),
+    extraData: t.String(),
+    signature: t.String(),
   }),
 });
