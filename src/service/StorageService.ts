@@ -1,8 +1,9 @@
 import { Constant } from "../util/Constant";
 import { StorageError } from "../util/Error";
 import { StorageErrorType } from "../util/Enum";
-import { writeFile, mkdir, unlink } from "fs/promises";
 import { join } from "path";
+import { BunFile } from "bun";
+import { unlink } from "node:fs/promises";
 
 export class StorageService {
   private readonly uploadRootDir: string;
@@ -13,36 +14,38 @@ export class StorageService {
 
   async saveFile(file: File, relativePath: string): Promise<string> {
     const fullPath = join(this.uploadRootDir, relativePath);
-    const directory = fullPath.substring(0, fullPath.lastIndexOf("/"));
 
     try {
-      await mkdir(directory, { recursive: true });
+      console.log("fullPath", fullPath);
       await Bun.write(fullPath, file);
       return relativePath;
     } catch (error) {
       throw new StorageError(
-        "Cannot save file",
+        "Không thể lưu file",
         StorageErrorType.SAVE_FILE_ERROR
       );
     }
   }
 
   async saveFileWithTime(file: File, relativePath: string): Promise<string> {
-    const fullPath = join(this.uploadRootDir, relativePath);
-    const directory = fullPath.substring(0, fullPath.lastIndexOf("/"));
+    const directory = join(this.uploadRootDir, relativePath);
+    const fileName = `${Date.now()}_${file.name}`;
+    const fullPath = join(directory, fileName);
 
     try {
-      await mkdir(directory, { recursive: true });
-      const fileName = `${Date.now()}_${file.name}`;
-      const filePath = join(directory, fileName);
-      await Bun.write(filePath, file);
+      await Bun.write(Bun.file(directory), "");
+      await Bun.write(fullPath, file);
       return join(relativePath, fileName);
     } catch (error) {
       throw new StorageError(
-        "Cannot save file",
+        "Không thể lưu file",
         StorageErrorType.SAVE_FILE_ERROR
       );
     }
+  }
+
+  async getFiles(filePaths: string[]): Promise<(BunFile | null)[]> {
+    return Promise.all(filePaths.map((filePath) => this.getFile(filePath)));
   }
 
   async deleteFile(filePath: string): Promise<void> {
@@ -52,22 +55,22 @@ export class StorageService {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
         throw new StorageError(
-          "Cannot delete file",
+          "Không thể xóa file",
           StorageErrorType.DELETE_FILE_ERROR
         );
       }
     }
   }
 
-  async getFile(
-    filePath: string
-  ): Promise<{ data: Buffer; mimeType: string } | null> {
+  async getFile(filePath: string): Promise<BunFile | null> {
+    const fullPath = join(this.uploadRootDir, filePath);
+    const file = Bun.file(fullPath);
+
     try {
-      const fullPath = `${this.uploadRootDir}/${filePath}`;
-      const file = await Bun.file(fullPath);
-      const data = Buffer.from(await file.arrayBuffer());
-      const mimeType = file.type;
-      return { data, mimeType };
+      if (await file.exists()) {
+        return file;
+      }
+      return null;
     } catch (error) {
       console.error("Lỗi khi đọc file:", error);
       return null;
