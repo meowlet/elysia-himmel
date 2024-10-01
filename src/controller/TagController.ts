@@ -11,4 +11,13 @@ export const TagController = new Elysia()
   .get("/", async ({ repository }) => {
     const tags = await repository.getAllTags();
     return createSuccessResponse("Tags retrieved successfully", tags);
+  })
+  .get("/:tagCode/fictions", async ({ params, repository }) => {
+    const { tag, fictions } = await repository.getFictionsByTagCode(
+      params.tagCode
+    );
+    return createSuccessResponse("Get fictions by tag code successfully", {
+      tag,
+      fictions,
+    });
   });
