@@ -1,11 +1,15 @@
 import Elysia, { t } from "elysia";
-import { createSuccessResponse } from "../model/Response";
+import { createErrorResponse, createSuccessResponse } from "../model/Response";
 import { PaymentService } from "../service/PaymentService";
 import { MeRepository } from "../repository/MeRepository";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import { PaymentModel } from "../model/PaymentModel";
-import { PaymentStatus } from "../model/Entity";
+import { PaymentStatus, Transaction } from "../model/Entity";
+import { Constant } from "../util/Constant";
+import { database } from "../database/Database";
+import { Db, ObjectId } from "mongodb";
+import { PremiumDuration } from "../model/MeModel";
 
 const MOMO_PARTNER_CODE = Bun.env.MOMO_PARTNER_CODE || "";
 const MOMO_ACCESS_KEY = Bun.env.MOMO_ACCESS_KEY || "";
@@ -72,66 +76,119 @@ export const PaymentController = new Elysia()
     }
   })
   .post(
-    "/momo-ipn",
+    "/momo-payment-process",
     async ({ body, paymentService, set }) => {
-      console.log("Got IPN from MoMo:", body);
+      set.status = 204;
+      const transactionInfo = await database
+        .collection(Constant.TRANSACTION_COLLECTION)
+        .findOne<Transaction>({
+          orderId: body.orderId,
+        });
 
-      // Xác thực chữ ký
-      const signature = body.signature;
-      delete body.signature;
-      const rawSignature = Object.keys(body)
-        .sort()
-        .map((key) => `${key}=${body[key as keyof typeof body]}`)
-        .join("&");
-
-      const computedSignature = crypto
-        .createHmac("sha256", MOMO_SECRET_KEY)
-        .update(rawSignature)
-        .digest("hex");
-
-      if (signature !== computedSignature) {
-        console.error("Invalid signature");
-        return createSuccessResponse("Invalid signature", null);
+      if (!transactionInfo) {
+        return;
       }
 
-      // Kiểm tra trạng thái giao dịch
-      if (body.resultCode === 0) {
-        // Giao dịch thành công
-        const orderId = body.orderId!;
-        const amount = body.amount!;
-        const transId = body.transId!;
+      const requestId = body.requestId;
 
-        // // Cập nhật trạng thái giao dịch trong cơ sở dữ liệu
-        // await paymentService.updateTransactionStatus(
-        //   orderId,
-        //   "success",
-        //   transId.toString()
-        // );
+      if (requestId !== transactionInfo.requestId) {
+        return;
+      }
 
-        // Cập nhật trạng thái premium cho người dùng
-        const userId = await paymentService.getUserIdFromOrderId(orderId);
-        if (userId) {
-          const meRepository = new MeRepository(userId);
-          await meRepository.updatePremiumStatus(true);
-        }
-
-        console.log(`Transaction ${orderId} success, amount: ${amount}`);
-      } else {
-        // Giao dịch thất bại
-        console.log(
-          `Transaction ${body.orderId} failed, error code: ${body.resultCode}`
-        );
-        await paymentService.updateTransactionStatus(
-          body.orderId!,
+      if (body.resultCode !== 0) {
+        await updateTransactionStatus(
+          database,
+          transactionInfo.orderId,
           PaymentStatus.FAILED
         );
+        return;
       }
 
-      set.status = 204;
+      await updateTransactionStatus(
+        database,
+        transactionInfo.orderId,
+        PaymentStatus.SUCCESS
+      );
 
-      return createSuccessResponse("IPN processed", null);
+      await updateUserPremiumStatus(
+        database,
+        transactionInfo.user as string,
+        true,
+        transactionInfo.premiumDuration as PremiumDuration
+      );
+
+      return;
     },
     {
-      body: "MomoRequestBody",
+      body: "MomoPaymentProcessRequestBody",
     }
   );
+
+async function updateTransactionStatus(
+  database: Db,
+  orderId: string,
+  status: PaymentStatus
+) {
+  const transaction = await database
+    .collection(Constant.TRANSACTION_COLLECTION)
+    .findOne({ orderId: orderId });
+
+  if (!transaction) {
+    throw new Error("Transaction not found");
+  }
+
+  let updateData = {
+    status,
+    updatedAt: new Date(),
+  };
+
+  await database
+    .collection(Constant.TRANSACTION_COLLECTION)
+    .updateOne({ orderId: orderId }, { $set: updateData });
+}
+
+// update user's premium status
+async function updateUserPremiumStatus(
+  database: Db,
+  userId: string,
+  status: boolean,
+  duration: PremiumDuration
+) {
+  const user = await database
+    .collection(Constant.USER_COLLECTION)
+    .findOne({ _id: new ObjectId(userId) });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  let updateData: any = {
+    isPremium: status,
+    updatedAt: new Date(),
+  };
+
+  if (duration) {
+    let expiryDate: Date;
+    switch (duration) {
+      case PremiumDuration.ONE_MONTH:
+        expiryDate = new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000);
+        break;
+      case PremiumDuration.THREE_MONTH:
+        expiryDate = new Date(new Date().getTime() + 90 * 24 * 60 * 60 * 1000);
+        break;
+      case PremiumDuration.SIX_MONTH:
+        expiryDate = new Date(new Date().getTime() + 180 * 24 * 60 * 60 * 1000);
+        break;
+      case PremiumDuration.ONE_YEAR:
+        expiryDate = new Date(new Date().getTime() + 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        throw new Error("Invalid premium duration");
+    }
+    updateData.premiumExpiryDate = expiryDate;
+  }
+
+  await database
+    .collection(Constant.USER_COLLECTION)
+    .updateOne({ _id: new ObjectId(userId) }, { $set: updateData });
+}
