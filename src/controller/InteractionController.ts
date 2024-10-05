@@ -6,6 +6,18 @@ import { InteractionRepository } from "../repository/InteractionRepository";
 
 export const InteractionController = new Elysia()
   .use(InteractionModel)
+  // Comment routes
+  .get(
+    "/:fictionId/comments",
+    async ({ params, query, repository }) => {
+      const comments = await repository.getComments(params.fictionId, query);
+      return createSuccessResponse("Comments retrieved successfully", comments);
+    },
+    {
+      params: "FictionIdParams",
+      query: "GetCommentsQuery",
+    }
+  )
   .use(AuthPlugin)
   .derive(({ userId }) => {
     return {
@@ -25,18 +37,6 @@ export const InteractionController = new Elysia()
     {
       params: "FictionIdParams",
       body: "RateFictionBody",
-    }
-  )
-  // Comment routes
-  .get(
-    "/:fictionId/comments",
-    async ({ params, query, repository }) => {
-      const comments = await repository.getComments(params.fictionId, query);
-      return createSuccessResponse("Comments retrieved successfully", comments);
-    },
-    {
-      params: "FictionIdParams",
-      query: "GetCommentsQuery",
     }
   )
   // get current user's rating
@@ -107,5 +107,15 @@ export const InteractionController = new Elysia()
     },
     {
       params: "CommentParams",
+    }
+  )
+  .delete(
+    "/comments/:commentId/rate",
+    async ({ params, repository }) => {
+      const result = await repository.deleteCommentRate(params.commentId);
+      return createSuccessResponse("Comment rate deleted successfully", result);
+    },
+    {
+      params: "DeleteRateCommentParams",
     }
   );

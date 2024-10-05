@@ -14,6 +14,13 @@ export const InteractionModel = new Elysia().model({
   RateCommentBody: t.Object({
     isUseful: t.Boolean(),
   }),
+  DeleteRateCommentParams: t.Object({
+    commentId: t.String({
+      minLength: 24,
+      maxLength: 24,
+      error: "Comment ID must be 24 characters long",
+    }),
+  }),
   GetCommentsQuery: t.Object({
     page: t.Optional(t.Number({ minimum: 1 })),
     limit: t.Optional(t.Number({ minimum: 1, maximum: 100 })),

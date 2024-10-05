@@ -10,6 +10,21 @@ export class InteractionRepository {
   constructor(private userId: string) {
     this.database = database;
   }
+  async deleteCommentRate(commentId: string) {
+    const result = await this.database
+      .collection<Comment>(Constant.COMMENT_COLLECTION)
+      .updateOne(
+        { _id: new ObjectId(commentId) },
+        {
+          $pull: {
+            likes: new ObjectId(this.userId),
+            dislikes: new ObjectId(this.userId),
+          },
+        }
+      );
+
+    if (!result.acknowledged) throw new Error("Failed to delete comment rate");
+  }
 
   async getRating(fictionId: string): Promise<Rating | null> {
     const rating = await this.database
