@@ -111,7 +111,7 @@ export class MeRepository {
 
     const isPasswordCorrect = await Bun.password.verify(
       currentPassword,
-      user.passwordHash
+      user.passwordHash as string
     );
 
     if (!isPasswordCorrect) {
