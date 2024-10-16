@@ -142,6 +142,7 @@ export const AuthController = new Elysia()
         cookie.refreshToken?.value || headers.authorization?.substring(7);
 
       if (!refreshToken) {
+        cookie.accessToken.remove();
         throw new AuthorizationError(
           "No token provided",
           AuthorizationErrorType.NO_TOKEN_PROVIDED
@@ -150,24 +151,8 @@ export const AuthController = new Elysia()
 
       const payload = await refreshJwt.verify(refreshToken);
       if (!payload) {
-        //clear cookies
-        cookie.accessToken.set({
-          value: "",
-          httpOnly: true,
-          secure: true,
-          sameSite: "strict",
-          maxAge: 0,
-          path: "/",
-        });
-
-        cookie.refreshToken.set({
-          value: "",
-          httpOnly: true,
-          secure: true,
-          sameSite: "strict",
-          maxAge: 0,
-          path: "/",
-        });
+        cookie.accessToken.remove();
+        cookie.refreshToken.remove();
 
         throw new AuthorizationError(
           "Invalid token",

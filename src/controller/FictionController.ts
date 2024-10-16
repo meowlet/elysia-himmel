@@ -5,10 +5,13 @@ import { join } from "path";
 import { createErrorResponse, createSuccessResponse } from "../model/Response";
 import { FictionModel } from "../model/FictionModel";
 import { FictionRepository } from "../repository/FictionRepository";
+import { ChapterController } from "./ChapterController";
+import { ChapterModel } from "../model/ChapterModel";
 
 export const FictionController = new Elysia()
   .use(FictionModel)
-  .derive(() => {
+  .use(ChapterModel)
+  .derive(async () => {
     return {
       repository: new FictionRepository(""),
     };
@@ -21,6 +24,30 @@ export const FictionController = new Elysia()
     },
     {
       query: "QueryFictionParams",
+    }
+  )
+  .get(
+    "/:fictionId/chapter/:chapterId/:pageIndex",
+    async ({ params }) => {
+      const path = join(
+        "public",
+        "fictions",
+        params.fictionId,
+        "chapters",
+        params.chapterId,
+        params.pageIndex + ".jpeg"
+      );
+
+      const file = Bun.file(path);
+
+      if (!(await file.exists())) {
+        throw new NotFoundError("Chapter page not found");
+      }
+
+      return file;
+    },
+    {
+      params: "ChapterPageParams",
     }
   )
   .get(
@@ -48,6 +75,7 @@ export const FictionController = new Elysia()
       params: "FictionIdParams",
     }
   )
+  .use(ChapterController)
   .use(AuthPlugin)
   .derive(({ userId }) => {
     return {

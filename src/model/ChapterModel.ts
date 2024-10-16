@@ -33,6 +33,12 @@ export const ChapterModel = new Elysia().model({
       error: "Chapter index must be a number between 1 and 999999",
     }),
   }),
+  ChapterIdParams: t.Object({
+    chapterId: t.String({
+      pattern: "^[0-9a-fA-F]{24}$",
+      error: "Chapter id must be a valid UUID",
+    }),
+  }),
   ChapterPageParams: t.Object({
     chapterId: t.String({
       pattern: "^[0-9a-fA-F]{24}$",
@@ -41,6 +47,10 @@ export const ChapterModel = new Elysia().model({
     pageIndex: t.String({
       pattern: "^[1-9][0-9]{0,5}$",
       error: "Page index must be a number between 1 and 999999",
+    }),
+    fictionId: t.String({
+      pattern: "^[0-9a-fA-F]{24}$",
+      error: "Fiction id must be a valid UUID",
     }),
   }),
 });
