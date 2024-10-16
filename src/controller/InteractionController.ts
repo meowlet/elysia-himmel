@@ -6,7 +6,11 @@ import { InteractionRepository } from "../repository/InteractionRepository";
 
 export const InteractionController = new Elysia()
   .use(InteractionModel)
-  // Comment routes
+  .derive(() => {
+    return {
+      repository: new InteractionRepository(""),
+    };
+  })
   .get(
     "/:fictionId/comments",
     async ({ params, query, repository }) => {
