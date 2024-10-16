@@ -15,7 +15,7 @@ const app = new Elysia()
     return "Welcome to Himmel!";
   })
   .group("/api", (app) => app.use(Application))
-  .listen(3000);
+  .listen(Constant.PORT);
 
 console.log(
   `The app should be running at http://${app.server?.hostname}:${app.server?.port}`
