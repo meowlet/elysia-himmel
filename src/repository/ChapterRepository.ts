@@ -2,7 +2,7 @@ import { Db, ObjectId, WithId } from "mongodb";
 import { StorageService } from "../service/StorageService";
 import { database } from "../database/Database";
 import { NotFoundError } from "elysia";
-import { Chapter, Fiction } from "../model/Entity";
+import { Chapter, Fiction, FictionType } from "../model/Entity";
 import { Constant } from "../util/Constant";
 import { ConflictError, ForbiddenError } from "../util/Error";
 import path from "path";
@@ -35,7 +35,8 @@ export class ChapterRepository {
   private async saveContent(
     fictionId: string,
     chapterId: string,
-    content: File[]
+    content: File[],
+    isFictionPremium: boolean
   ) {
     const savePromises = content.map(async (file, index) => {
       const buffer = await file.arrayBuffer();
@@ -43,7 +44,7 @@ export class ChapterRepository {
 
       const imageName = String(index + 1) + ".jpeg";
       const imagePath = path.join(
-        "fictions",
+        isFictionPremium ? "premium-fictions" : "fictions",
         fictionId,
         "chapters",
         chapterId,
@@ -105,7 +106,12 @@ export class ChapterRepository {
     }
 
     // Save content
-    await this.saveContent(fictionId, result.insertedId.toString(), content);
+    await this.saveContent(
+      fictionId,
+      result.insertedId.toString(),
+      content,
+      fiction.type === FictionType.PREMIUM
+    );
 
     return result;
   }

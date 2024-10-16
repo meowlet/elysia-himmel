@@ -14,36 +14,15 @@ export const ChapterController = new Elysia()
       repository: new ChapterRepository(""),
     };
   })
+  // get chapter data
   .get(
-    "/chapter/:chapterId/:pageIndex",
+    "/chapter/:chapterId",
     async ({ params, repository }) => {
       const chapter = await repository.getChapter(params.chapterId);
-
-      const fiction = await repository.getFiction(chapter.fiction as string);
-
-      if (fiction.type != FictionType.FREE) {
-        throw new ForbiddenError("This endpoint is for free chapters only");
-      }
-
-      const path = join(
-        "public",
-        "fictions",
-        chapter.fiction as string,
-        "chapters",
-        params.chapterId,
-        params.pageIndex + ".jpeg"
-      );
-
-      const file = Bun.file(path);
-
-      if (!(await file.exists())) {
-        throw new NotFoundError("Chapter page not found");
-      }
-
-      return file;
+      return createSuccessResponse("Chapter retrieved successfully", chapter);
     },
     {
-      params: "ChapterPageParams",
+      params: "ChapterIdParams",
     }
   )
   .use(AuthPlugin)
@@ -77,14 +56,12 @@ export const ChapterController = new Elysia()
     }
   )
   .get(
-    "/premium/chapter/:chapterId/:pageIndex",
-    async ({ params, repository, user }) => {
-      const chapter = await repository.getChapter(params.chapterId);
-
+    "/:fictionId/premium-chapter/:chapterId/:pageIndex",
+    async ({ params, user }) => {
       const path = join(
         "public",
-        "fictions",
-        chapter.fiction.toString(),
+        "premium-fictions",
+        params.fictionId,
         "chapters",
         params.chapterId,
         params.pageIndex + ".jpeg"
