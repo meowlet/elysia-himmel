@@ -233,6 +233,16 @@ export class FictionRepository {
           },
         },
         {
+          $addFields: {
+            chapters: {
+              $sortArray: {
+                input: "$chapters",
+                sortBy: { chapterIndex: 1 },
+              },
+            },
+          },
+        },
+        {
           $project: {
             _id: 1,
             title: 1,
