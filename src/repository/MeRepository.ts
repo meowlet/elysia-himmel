@@ -11,6 +11,7 @@ import { join } from "path";
 import { ValidationError } from "elysia";
 import { PremiumDuration } from "../model/MeModel";
 import { PaymentService, PremiumOrderInfo } from "../service/PaymentService";
+import sharp from "sharp";
 
 export class MeRepository {
   private database: Db;
@@ -78,8 +79,13 @@ export class MeRepository {
   }
 
   public async saveAvatar(avatar: File): Promise<string> {
-    const path = join(this.userId, "avatar");
-    return await this.storageService.saveFile(avatar, path);
+    const buffer = await avatar.arrayBuffer();
+    const jpegBuffer = await sharp(buffer).jpeg({ quality: 80 }).toBuffer();
+    const path = join("users", this.userId, "avatar.jpeg");
+    const file = new File([jpegBuffer], "avatar.jpeg", {
+      type: "image/jpeg",
+    });
+    return await this.storageService.saveFile(file, path);
   }
 
   public async updateUser(user: WithId<User>) {
