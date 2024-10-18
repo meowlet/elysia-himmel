@@ -91,6 +91,7 @@ export class FictionRepository {
         ratingCount: 0,
         averageRating: 0,
         commentCount: 0,
+        favoriteCount: 0,
       },
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -156,7 +157,7 @@ export class FictionRepository {
         { description: { $regex: query, $options: "i" } },
       ];
     }
-    if (author) queryConditions.author = author;
+    if (author) queryConditions.author = new ObjectId(author);
     if (tags && tags.length > 0)
       queryConditions.tags = { $all: tags.map((tag) => new ObjectId(tag)) };
     if (status) queryConditions.status = status;
@@ -308,13 +309,19 @@ export class FictionRepository {
     return result.deletedCount === 1;
   }
 
-  async incrementViewCount(fictionId: string): Promise<void> {
-    await this.database
+  async incrementViewCount(fictionId: string) {
+    const result = await this.database
       .collection<Fiction>(Constant.FICTION_COLLECTION)
       .updateOne(
         { _id: new ObjectId(fictionId) },
         { $inc: { "stats.viewCount": 1 } }
       );
+
+    if (!result.acknowledged) {
+      throw new Error("Failed to increment view count");
+    }
+
+    return result.modifiedCount === 1;
   }
 
   async updateRating(fictionId: string, newRating: number): Promise<void> {
@@ -357,5 +364,54 @@ export class FictionRepository {
       new File([jpegBuffer], "cover.jpeg", { type: "image/jpeg" }),
       path
     );
+  }
+
+  async favoriteFiction(fictionId: string): Promise<boolean> {
+    const fiction = await this.getFictionById(fictionId);
+    if (!fiction) {
+      throw new NotFoundError("Fiction not found");
+    }
+
+    const userId = new ObjectId(this.userId);
+    const fictionObjectId = new ObjectId(fictionId);
+
+    const user = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne({ _id: userId });
+
+    if (!user) {
+      throw new AuthorizationError(
+        "User not found",
+        AuthorizationErrorType.INVALID_TOKEN
+      );
+    }
+
+    const isFavorited = user.favorites?.some((id) =>
+      (id as ObjectId).equals(fictionObjectId)
+    );
+
+    let userUpdateOperation;
+    let fictionUpdateOperation;
+    if (isFavorited) {
+      userUpdateOperation = { $pull: { favorites: fictionObjectId } };
+      fictionUpdateOperation = { $inc: { "stats.favoriteCount": -1 } };
+    } else {
+      userUpdateOperation = { $addToSet: { favorites: fictionObjectId } };
+      fictionUpdateOperation = { $inc: { "stats.favoriteCount": 1 } };
+    }
+
+    const result = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .updateOne({ _id: userId }, userUpdateOperation);
+
+    await this.database
+      .collection<Fiction>(Constant.FICTION_COLLECTION)
+      .updateOne({ _id: fictionObjectId }, fictionUpdateOperation);
+
+    if (!result.acknowledged) {
+      throw new Error("Failed to update favorite status");
+    }
+
+    return !isFavorited;
   }
 }

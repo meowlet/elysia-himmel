@@ -30,7 +30,8 @@ export class AuthRepository {
       role: new ObjectId().toString(),
       earnings: 0,
       isPremium: false,
-      favoriteTags: [],
+      favorites: [],
+      bookmarks: [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -268,7 +269,8 @@ export class AuthRepository {
       role: new ObjectId().toString(),
       earnings: 0,
       isPremium: false,
-      favoriteTags: [],
+      favorites: [],
+      bookmarks: [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };

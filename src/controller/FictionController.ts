@@ -134,4 +134,24 @@ export const FictionController = new Elysia()
       params: "FictionIdParams",
       body: "UploadCoverBody",
     }
+  )
+  .post(
+    "/:fictionId/favorite",
+    async ({ params, repository }) => {
+      const result = await repository.favoriteFiction(params.fictionId);
+      return createSuccessResponse("Fiction favorited successfully", result);
+    },
+    {
+      params: "FictionIdParams",
+    }
+  )
+  .post(
+    "/:fictionId/increment-view",
+    async ({ params, repository }) => {
+      await repository.incrementViewCount(params.fictionId);
+      return createSuccessResponse("View count incremented successfully", null);
+    },
+    {
+      params: "FictionIdParams",
+    }
   );

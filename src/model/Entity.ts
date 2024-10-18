@@ -55,10 +55,18 @@ interface User {
   earnings: number;
   isPremium: boolean;
   premiumExpiryDate?: Date; // Premium subscription expiry date
-  favoriteTags: string[]; // Array of tag_ids
+  favorites: string[] | ObjectId[]; // Array of fiction_ids
+  bookmarks: string[] | ObjectId[]; // Array of chapter_ids
+  readingHistory?: ReadingHistory[]; // Array of reading history
   createdAt: Date;
   updatedAt: Date;
   bio?: string;
+}
+
+interface ReadingHistory {
+  chapter: string | ObjectId; // Reference to Chapter._id
+  lastReadPage: number;
+  lastReadTime: Date;
 }
 
 interface Role {
@@ -75,6 +83,7 @@ interface FictionStats {
   ratingCount: number;
   averageRating: number;
   commentCount: number;
+  favoriteCount: number;
 }
 
 interface Fiction {
