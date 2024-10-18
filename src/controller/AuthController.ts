@@ -217,6 +217,7 @@ export const AuthController = new Elysia()
       }
 
       const { sub: googleId, email, name } = payload;
+      console.log(googleId, email, name);
       const { user, isNewUser } = await repository.signInOrSignUpWithGoogle(
         googleId,
         email!,

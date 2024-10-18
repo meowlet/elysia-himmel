@@ -2,7 +2,7 @@ import { Db, ObjectId, WithId } from "mongodb";
 import { StorageService } from "../service/StorageService";
 import { database } from "../database/Database";
 import { NotFoundError } from "elysia";
-import { Chapter, Fiction, FictionType } from "../model/Entity";
+import { Chapter, Fiction, FictionType, User } from "../model/Entity";
 import { Constant } from "../util/Constant";
 import { ConflictError, ForbiddenError } from "../util/Error";
 import path from "path";
@@ -18,6 +18,37 @@ export class ChapterRepository {
     this.database = database;
     this.authService = new AuthService(this.database, this.userId);
     this.storageService = new StorageService();
+  }
+
+  async bookmarkChapter(chapterId: string) {
+    const user = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne({ _id: new ObjectId(this.userId) });
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    const isBookmarked = user.bookmarks?.some(
+      (bookmark) => bookmark.toString() === chapterId
+    );
+
+    let updateOperation;
+    if (isBookmarked) {
+      updateOperation = { $pull: { bookmarks: new ObjectId(chapterId) } };
+    } else {
+      updateOperation = { $addToSet: { bookmarks: new ObjectId(chapterId) } };
+    }
+
+    const result = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .updateOne({ _id: new ObjectId(this.userId) }, updateOperation);
+
+    if (!result.acknowledged) {
+      throw new Error("Failed to update bookmark");
+    }
+
+    return !isBookmarked;
   }
 
   async getFiction(fictionId: string) {

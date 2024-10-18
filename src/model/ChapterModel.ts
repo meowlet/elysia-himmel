@@ -53,4 +53,10 @@ export const ChapterModel = new Elysia().model({
       error: "Fiction id must be a valid UUID",
     }),
   }),
+  BookmarkChapterParams: t.Object({
+    chapterId: t.String({
+      pattern: "^[0-9a-fA-F]{24}$",
+      error: "Chapter id must be a valid UUID",
+    }),
+  }),
 });

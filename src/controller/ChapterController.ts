@@ -55,6 +55,16 @@ export const ChapterController = new Elysia()
       body: "CreateChapterBody",
     }
   )
+  .post(
+    "/chapter/:chapterId/bookmark",
+    async ({ params, repository }) => {
+      await repository.bookmarkChapter(params.chapterId);
+      return createSuccessResponse("Chapter bookmarked successfully", null);
+    },
+    {
+      params: "ChapterIdParams",
+    }
+  )
   .get(
     "/:fictionId/premium-chapter/:chapterId/:pageIndex",
     async ({ params, user }) => {
