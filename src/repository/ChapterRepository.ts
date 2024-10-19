@@ -2,7 +2,13 @@ import { Db, ObjectId, WithId } from "mongodb";
 import { StorageService } from "../service/StorageService";
 import { database } from "../database/Database";
 import { NotFoundError } from "elysia";
-import { Chapter, Fiction, FictionType, User } from "../model/Entity";
+import {
+  Chapter,
+  Fiction,
+  FictionType,
+  ReadingHistory,
+  User,
+} from "../model/Entity";
 import { Constant } from "../util/Constant";
 import { ConflictError, ForbiddenError } from "../util/Error";
 import path from "path";
@@ -91,6 +97,92 @@ export class ChapterRepository {
     await Promise.all(savePromises);
   }
 
+  async saveReadingHistory(
+    chapterId: string,
+    lastReadPage: number
+  ): Promise<ReadingHistory> {
+    const user = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne({ _id: new ObjectId(this.userId) });
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    const chapter = await this.database
+      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
+      .findOne({ _id: new ObjectId(chapterId) });
+
+    if (!chapter) {
+      throw new NotFoundError("Chapter not found");
+    }
+
+    const newHistory: ReadingHistory = {
+      chapter: new ObjectId(chapterId),
+      lastReadPage: lastReadPage,
+      lastReadTime: new Date(),
+    };
+
+    // Tìm và cập nhật bản ghi hiện có cho cùng một fiction
+    const updateResult = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .updateOne(
+        {
+          _id: new ObjectId(this.userId),
+          "readingHistory.chapter": {
+            $in: await this.getChapterIdsForFiction(
+              new ObjectId(chapter.fiction)
+            ),
+          },
+        },
+        {
+          $set: { "readingHistory.$": newHistory },
+        }
+      );
+
+    // Nếu không tìm thấy bản ghi hiện có, thêm mới vào đầu mảng
+    if (updateResult.matchedCount === 0) {
+      const pushResult = await this.database
+        .collection<User>(Constant.USER_COLLECTION)
+        .updateOne(
+          { _id: new ObjectId(this.userId) },
+          {
+            $push: {
+              readingHistory: {
+                $each: [newHistory],
+                $position: 0,
+              },
+            },
+          }
+        );
+
+      if (!pushResult.acknowledged) {
+        throw new Error("Failed to add new reading history");
+      }
+    }
+
+    if (!updateResult.acknowledged) {
+      throw new Error("Failed to update reading history");
+    }
+
+    return newHistory;
+  }
+
+  async getReadingHistory(): Promise<ReadingHistory[]> {
+    const user = await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .findOne(
+        { _id: new ObjectId(this.userId) },
+        { projection: { readingHistory: 1 } }
+      );
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    return user.readingHistory || [];
+  }
+
   public async createChapter(
     fictionId: string,
     chapterData: Partial<Chapter>,
@@ -171,4 +263,17 @@ export class ChapterRepository {
   //   const content = await this.storageService.getFiles(chapter.content);
   //   return content;
   // }
+
+  // Phương thức hỗ trợ để lấy tất cả chapter ID của một fiction
+  private async getChapterIdsForFiction(
+    fictionId: ObjectId
+  ): Promise<ObjectId[]> {
+    const chapters = await this.database
+      .collection<Chapter>(Constant.CHAPTER_COLLECTION)
+      .find({ fiction: fictionId })
+      .project({ _id: 1 })
+      .toArray();
+
+    return chapters.map((chapter) => chapter._id);
+  }
 }
