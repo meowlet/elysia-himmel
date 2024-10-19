@@ -91,4 +91,20 @@ export const ChapterController = new Elysia()
     {
       params: "ChapterPageParams",
     }
+  )
+  .post(
+    "/chapter/:chapterId/history/:pageIndex",
+    async ({ params, repository }) => {
+      const history = await repository.saveReadingHistory(
+        params.chapterId,
+        Number(params.pageIndex)
+      );
+      return createSuccessResponse(
+        "Reading history saved successfully",
+        history
+      );
+    },
+    {
+      params: "ChapterHistoryParams",
+    }
   );

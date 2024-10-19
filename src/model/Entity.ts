@@ -239,6 +239,7 @@ export {
   Transaction,
   AuthorApplication,
   SearchQuery,
+  ReadingHistory,
 };
 
 // System description
