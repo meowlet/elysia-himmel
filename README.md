@@ -28,6 +28,7 @@ Essential Scrum artifacts and project documents:
 - [Burndown Chart (Google Sheet)](https://docs.google.com/spreadsheets/d/1W7d2rrt6qtywVlRqCWeX94i3NgFsBiRYK9iGEJwsFxY/edit?usp=sharing)
 - [Test Cases (Google Sheet)](https://docs.google.com/spreadsheets/d/1JQrGQE1fxJhuh_y6gVAhs0RsITeuieGxrUzNr16_FNA/edit?usp=sharing)
 - [User Stories (Google Sheet)](https://docs.google.com/spreadsheets/d/1IMvrT92cw2pQGa_7GuSoohFBCKYb1M7pVQdcxcrhfeA/edit?usp=sharing)
+- [Sprint Retrospective (Google Docs)](https://docs.google.com/document/d/1rVFY6zy3pWZNYCELvno62gzclRKpSW3A74x4LqiBkDU/edit?usp=sharing)
 - [Definition of Done (Google Docs)](https://docs.google.com/document/d/1FWhIxTcmK0pftpbNWGHrhtGI5iU-88yC6HRtRGBdbO0/edit?usp=sharing)
 
 ## License
