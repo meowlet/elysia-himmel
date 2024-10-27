@@ -63,8 +63,8 @@ export const AuthController = new Elysia()
       cookie.accessToken.set({
         value: accessToken,
         httpOnly: true,
-        secure: true,
-        sameSite: "strict",
+        secure: false, // Change this to false for HTTP
+        sameSite: "lax", // Change this to "lax" for cross-site usage
         maxAge: Constant.ACCESS_TOKEN_EXPIRY_MS,
         path: "/",
       });
@@ -72,8 +72,8 @@ export const AuthController = new Elysia()
       cookie.refreshToken.set({
         value: "",
         httpOnly: true,
-        secure: true,
-        sameSite: "strict",
+        secure: false, // Change this to false for HTTP
+        sameSite: "lax", // Change this to "lax" for cross-site usage
         maxAge: 0,
         path: "/",
       });
@@ -82,8 +82,8 @@ export const AuthController = new Elysia()
         cookie.refreshToken.set({
           value: refreshToken,
           httpOnly: true,
-          secure: true,
-          sameSite: "strict",
+          secure: false, // Change this to false for HTTP
+          sameSite: "lax", // Change this to "lax" for cross-site usage
           maxAge: Constant.REFRESH_TOKEN_EXPIRY_MS,
           path: "/",
         });
@@ -175,16 +175,16 @@ export const AuthController = new Elysia()
       cookie.accessToken.set({
         value: newAccessToken,
         httpOnly: true,
-        secure: true,
-        sameSite: "strict",
+        secure: false, // Change this to false for HTTP
+        sameSite: "lax", // Change this to "lax" for cross-site usage
         maxAge: Constant.ACCESS_TOKEN_EXPIRY_MS,
       });
 
       cookie.refreshToken.set({
         value: newRefreshToken,
         httpOnly: true,
-        secure: true,
-        sameSite: "strict",
+        secure: false, // Change this to false for HTTP
+        sameSite: "lax", // Change this to "lax" for cross-site usage
         maxAge: Constant.REFRESH_TOKEN_EXPIRY_MS,
       });
 
@@ -230,8 +230,8 @@ export const AuthController = new Elysia()
       cookie.accessToken.set({
         value: accessToken,
         httpOnly: true,
-        secure: true,
-        sameSite: "strict",
+        secure: false, // Change this to false for HTTP
+        sameSite: "lax", // Change this to "lax" for cross-site usage
         maxAge: Constant.ACCESS_TOKEN_EXPIRY_MS,
         path: "/",
       });
@@ -239,8 +239,8 @@ export const AuthController = new Elysia()
       cookie.refreshToken.set({
         value: refreshToken,
         httpOnly: true,
-        secure: true,
-        sameSite: "strict",
+        secure: false, // Change this to false for HTTP
+        sameSite: "lax", // Change this to "lax" for cross-site usage
         maxAge: Constant.REFRESH_TOKEN_EXPIRY_MS,
         path: "/",
       });

@@ -28,6 +28,17 @@ export const InteractionController = new Elysia()
       repository: new InteractionRepository(userId!),
     };
   })
+  // get current user's rating
+  .get(
+    "/:fictionId/rate",
+    async ({ params, repository }) => {
+      const rating = await repository.getRating(params.fictionId);
+      return createSuccessResponse("Rating retrieved successfully", rating);
+    },
+    {
+      params: "FictionIdParams",
+    }
+  )
   // Rating routes
   .post(
     "/:fictionId/rate",
@@ -41,17 +52,6 @@ export const InteractionController = new Elysia()
     {
       params: "FictionIdParams",
       body: "RateFictionBody",
-    }
-  )
-  // get current user's rating
-  .get(
-    "/:fictionId/rate",
-    async ({ params, repository }) => {
-      const rating = await repository.getRating(params.fictionId);
-      return createSuccessResponse("Rating retrieved successfully", rating);
-    },
-    {
-      params: "FictionIdParams",
     }
   )
   .post(
