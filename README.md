@@ -29,6 +29,7 @@ Essential Scrum artifacts and project documents:
 - [Test Cases (Google Sheet)](https://docs.google.com/spreadsheets/d/1JQrGQE1fxJhuh_y6gVAhs0RsITeuieGxrUzNr16_FNA/edit?usp=sharing)
 - [User Stories (Google Sheet)](https://docs.google.com/spreadsheets/d/1IMvrT92cw2pQGa_7GuSoohFBCKYb1M7pVQdcxcrhfeA/edit?usp=sharing)
 - [Sprint Retrospective (Google Docs)](https://docs.google.com/document/d/1rVFY6zy3pWZNYCELvno62gzclRKpSW3A74x4LqiBkDU/edit?usp=sharing)
+- [Sprint Retrospective.V2 (Google Docs)](https://docs.google.com/document/d/1NfX-UQerOkgxl-h7-G9WkCVfCL5aMWzHUumgrYOTivc/edit?usp=sharing)
 - [Definition of Done (Google Docs)](https://docs.google.com/document/d/1FWhIxTcmK0pftpbNWGHrhtGI5iU-88yC6HRtRGBdbO0/edit?usp=sharing)
 
 ## License
