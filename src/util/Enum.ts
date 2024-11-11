@@ -2,7 +2,7 @@ export enum Resource {
   USER = "user",
   ROLE = "role",
   PERMISSION = "permission",
-  WORK = "work",
+  FICTION = "fiction",
   TAG = "tag",
   COMMENT = "comment",
   RATING = "rating",

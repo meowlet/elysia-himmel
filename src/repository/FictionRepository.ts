@@ -15,6 +15,8 @@ import { NotFoundError } from "elysia";
 import { StorageService } from "../service/StorageService";
 import { join } from "path";
 import sharp from "sharp";
+import { AuthService } from "../service/AuthService";
+import { Resource, Action } from "../util/Enum";
 
 export enum SortField {
   TITLE = "title",
@@ -53,10 +55,12 @@ interface QueryFictionResult {
 export class FictionRepository {
   private database: Db;
   private storageService: StorageService;
+  private authService: AuthService;
 
   constructor(private userId: string) {
     this.database = database;
     this.storageService = new StorageService();
+    this.authService = new AuthService(this.database, this.userId);
   }
 
   public async getCurrentUser(): Promise<WithId<User>> {
@@ -78,6 +82,12 @@ export class FictionRepository {
     fictionData: Partial<Fiction>,
     fictionCover?: File
   ): Promise<WithId<Fiction>> {
+    if (
+      !(await this.authService.hasPermission(Resource.FICTION, Action.CREATE))
+    ) {
+      throw new ForbiddenError("You don't have permission to create fictions");
+    }
+
     const newFiction: Fiction = {
       ...fictionData,
       author: new ObjectId(this.userId),
@@ -271,36 +281,72 @@ export class FictionRepository {
     fictionId: string,
     updateData: Partial<Fiction>
   ): Promise<Fiction | null> {
-    for (const tag of updateData.tags || []) {
-      if (!(await this.doesTagExist(tag.toString()))) {
-        throw new Error(`This tag does not exist: ${tag}`);
-      }
+    const fiction = await this.getFictionById(fictionId);
+    if (!fiction) {
+      throw new NotFoundError("Fiction not found");
     }
-    updateData.tags = updateData.tags?.map((tag) => new ObjectId(tag)) || [];
+
+    const hasPermission = await this.authService.hasPermission(
+      Resource.FICTION,
+      Action.UPDATE
+    );
+    const isOwner = fiction.author.toString() === this.userId;
+
+    if (!hasPermission && !isOwner) {
+      throw new ForbiddenError(
+        "You don't have permission to update this fiction"
+      );
+    }
+
+    if (updateData.tags) {
+      for (const tag of updateData.tags) {
+        if (!(await this.doesTagExist(tag.toString()))) {
+          throw new Error(`This tag does not exist: ${tag}`);
+        }
+      }
+      updateData.tags = updateData.tags.map((tag) => new ObjectId(tag));
+    }
+
+    if (!hasPermission && updateData.type) {
+      throw new ForbiddenError(
+        "You don't have permission to update the type of the fiction"
+      );
+    }
 
     const result = await this.database
       .collection<Fiction>(Constant.FICTION_COLLECTION)
       .findOneAndUpdate(
-        { _id: new ObjectId(fictionId), author: new ObjectId(this.userId) },
+        { _id: new ObjectId(fictionId) },
         { $set: { ...updateData, updatedAt: new Date() } },
         { returnDocument: "after" }
       );
 
-    if (!result)
-      throw new NotFoundError(
-        "Fiction not found or you are not the author of this fiction"
-      );
+    if (!result) throw new Error("Failed to update fiction");
 
     return result;
   }
 
   async deleteFiction(fictionId: string): Promise<boolean> {
+    const fiction = await this.getFictionById(fictionId);
+    if (!fiction) {
+      throw new NotFoundError("Fiction not found");
+    }
+
+    const hasPermission = await this.authService.hasPermission(
+      Resource.FICTION,
+      Action.DELETE
+    );
+    const isOwner = fiction.author.toString() === this.userId;
+
+    if (!hasPermission && !isOwner) {
+      throw new ForbiddenError(
+        "You don't have permission to delete this fiction"
+      );
+    }
+
     const result = await this.database
       .collection<Fiction>(Constant.FICTION_COLLECTION)
-      .deleteOne({
-        _id: new ObjectId(fictionId),
-        author: new ObjectId(this.userId),
-      });
+      .deleteOne({ _id: new ObjectId(fictionId) });
 
     if (!result.acknowledged) {
       throw new Error("Failed to delete fiction");

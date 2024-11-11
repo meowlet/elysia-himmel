@@ -31,6 +31,7 @@ export class Constant {
   static readonly TAG_COLLECTION = "tags"; // Collection for tag data
   static readonly CHAPTER_COLLECTION = "chapters"; // Collection for chapter data
   static readonly RATING_COLLECTION = "ratings"; // Collection for rating data
+  static readonly ROLE_COLLECTION = "roles"; // Collection for role data
 
   // Payment configuration
   static readonly PAYMENT_CURRENCY = "VND"; // Currency for payment

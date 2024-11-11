@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { Action, Resource } from "../util/Enum";
 import { PremiumDuration } from "./MeModel";
+import { RoleSensitivityLevel } from "./RoleModel";
 
 // Enums
 enum NotificationType {
@@ -10,7 +11,7 @@ enum NotificationType {
   // Add more types as needed
 }
 
-enum AuthorApplicationStatus {
+export enum AuthorApplicationStatus {
   PENDING = "pending",
   APPROVED = "approved",
   REJECTED = "rejected",
@@ -50,7 +51,7 @@ interface User {
   fullName?: string;
   email: string;
   passwordHash?: string;
-  role: string | ObjectId; // Reference to Role._id
+  role: string | ObjectId | null; // Reference to Role._id
   authorApplicationStatus?: AuthorApplicationStatus;
   earnings: number;
   isPremium: boolean;
@@ -72,6 +73,7 @@ interface ReadingHistory {
 interface Role {
   name: string;
   description?: string;
+  sensitivityLevel: string;
   permissions: {
     resource: Resource;
     actions: Action[];

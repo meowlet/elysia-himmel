@@ -4,7 +4,7 @@ import { TransactionType, User } from "../model/Entity";
 import { Constant } from "../util/Constant";
 import { database } from "../database/Database";
 import { AuthorizationError } from "../util/Error";
-import { AuthorizationErrorType } from "../util/Enum";
+import { Action, AuthorizationErrorType, Resource } from "../util/Enum";
 import EmailService from "../service/EmailService";
 import { StorageService } from "../service/StorageService";
 import { join } from "path";
@@ -92,6 +92,13 @@ export class MeRepository {
     return await this.database
       .collection<User>(Constant.USER_COLLECTION)
       .updateOne({ _id: new ObjectId(user._id) }, { $set: user });
+  }
+
+  public async isUserAdmin(): Promise<boolean> {
+    return (
+      (await this.authService.hasPermission(Resource.USER, Action.UPDATE)) ||
+      (await this.authService.hasPermission(Resource.FICTION, Action.UPDATE))
+    );
   }
 
   public async getCurrentUser(): Promise<WithId<User>> {
