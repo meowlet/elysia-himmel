@@ -58,8 +58,6 @@ export const AuthController = new Elysia()
         refreshToken = await refreshJwt.sign({ sub: user._id.toString() });
       }
 
-      console.log(accessToken, refreshToken);
-
       cookie.accessToken.set({
         value: accessToken,
         httpOnly: true,

@@ -7,6 +7,8 @@ import { TagController } from "./controller/TagController";
 import { UserController } from "./controller/UserController";
 import { ChapterController } from "./controller/ChapterController";
 import { InteractionController } from "./controller/InteractionController";
+import { RoleController } from "./controller/RoleController";
+import { StatisticController } from "./controller/StatisticController";
 
 export const Application = new Elysia()
   .group("/me", (app) => app.use(MeController))
@@ -15,4 +17,6 @@ export const Application = new Elysia()
   .group("/transaction", (app) => app.use(TransactionController))
   .group("/tag", (app) => app.use(TagController))
   .group("/user", (app) => app.use(UserController))
-  .group("/interaction", (app) => app.use(InteractionController));
+  .group("/interaction", (app) => app.use(InteractionController))
+  .group("/role", (app) => app.use(RoleController))
+  .group("/statistic", (app) => app.use(StatisticController));

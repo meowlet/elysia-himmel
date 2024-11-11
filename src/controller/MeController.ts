@@ -29,8 +29,12 @@ export const MeController = new Elysia()
       user: user,
     };
   })
-  .get("/", async ({ user }) => {
-    return createSuccessResponse("Get user successfully", user);
+  .get("/", async ({ user, repository }) => {
+    const isAdmin = await repository.isUserAdmin();
+    return createSuccessResponse("Get user successfully", {
+      ...user,
+      isAdmin: isAdmin,
+    });
   })
   .post("/sign-out", async ({ cookie, repository, user }) => {
     cookie.accessToken.remove();
