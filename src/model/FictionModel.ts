@@ -61,6 +61,7 @@ export const FictionModel = new Elysia().model({
       })
     ),
     status: t.Optional(t.Enum(FictionStatus)),
+    type: t.Optional(t.Enum(FictionType)),
   }),
 
   UploadCoverBody: t.Object({
