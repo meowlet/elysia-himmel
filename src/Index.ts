@@ -6,11 +6,13 @@ import { AuthRepository } from "./repository/AuthRepository";
 import { ErrorPlugin } from "./plugin/ErrorPlugin";
 import { AuthorizationError, ConflictError } from "./util/Error";
 import cors from "@elysiajs/cors";
+import swagger from "@elysiajs/swagger";
 
 const app = new Elysia()
   .use(cors())
   .use(ErrorPlugin)
   .use(Database)
+  .use(swagger())
   .get("/", () => {
     return "Welcome to Himmel!";
   })

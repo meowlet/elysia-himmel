@@ -10,6 +10,7 @@
     "@bogeychan/elysia-logger": "^0.1.2",
     "@elysiajs/cors": "^1.1.1",
     "@elysiajs/jwt": "^1.1.0",
+    "@elysiajs/swagger": "^1.1.5",
     "@types/nodemailer": "^6.4.15",
     "@types/uuid": "^9.0.7",
     "elysia": "latest",
