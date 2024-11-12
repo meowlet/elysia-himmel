@@ -4,7 +4,11 @@ import { FictionStatus, FictionType } from "../model/Entity";
 
 export const FictionModel = new Elysia().model({
   CreateFictionBody: t.Object({
-    title: t.String({ minLength: 1, error: "Title must not be empty" }),
+    title: t.String({
+      minLength: 1,
+      error: "Title must not be empty",
+      maxLength: 100,
+    }),
     description: t.String({
       minLength: 1,
       error: "Description must not be empty",
@@ -45,7 +49,11 @@ export const FictionModel = new Elysia().model({
   }),
   UpdateFictionBody: t.Object({
     title: t.Optional(
-      t.String({ minLength: 1, error: "Title must not be empty" })
+      t.String({
+        minLength: 1,
+        error: "Title must not be empty",
+        maxLength: 100,
+      })
     ),
     description: t.Optional(
       t.String({
