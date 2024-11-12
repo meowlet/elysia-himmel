@@ -101,4 +101,24 @@ export const MeController = new Elysia()
     {
       body: "PurchasePremiumBody",
     }
-  );
+  )
+  .post(
+    "/apply-author",
+    async ({ body, repository }) => {
+      await repository.applyForAuthor(body.notes);
+      return createSuccessResponse(
+        "Author application submitted successfully",
+        null
+      );
+    },
+    {
+      body: "ApplyAuthorBody",
+    }
+  )
+  .delete("/author-application", async ({ repository }) => {
+    await repository.cancelAuthorApplication();
+    return createSuccessResponse(
+      "Author application deleted successfully",
+      null
+    );
+  });

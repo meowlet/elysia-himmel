@@ -3,6 +3,7 @@ export enum Resource {
   ROLE = "role",
   PERMISSION = "permission",
   FICTION = "fiction",
+  STATISTIC = "statistic",
   TAG = "tag",
   COMMENT = "comment",
   RATING = "rating",

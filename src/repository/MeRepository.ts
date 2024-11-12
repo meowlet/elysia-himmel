@@ -1,6 +1,10 @@
 import { Db, ObjectId, WithId } from "mongodb";
 import { AuthService } from "../service/AuthService";
-import { TransactionType, User } from "../model/Entity";
+import {
+  AuthorApplicationStatus,
+  TransactionType,
+  User,
+} from "../model/Entity";
 import { Constant } from "../util/Constant";
 import { database } from "../database/Database";
 import { AuthorizationError } from "../util/Error";
@@ -176,5 +180,51 @@ export class MeRepository {
         },
       }
     );
+  }
+
+  public async applyForAuthor(notes?: string): Promise<void> {
+    const user = await this.getCurrentUser();
+
+    // Kiểm tra xem user đã apply chưa
+    if (
+      user.authorApplicationStatus === AuthorApplicationStatus.APPROVED ||
+      user.authorApplicationStatus === AuthorApplicationStatus.PENDING
+    ) {
+      throw new Error("You have already applied to become an author");
+    }
+
+    // Update user status
+    await this.database.collection<User>(Constant.USER_COLLECTION).updateOne(
+      { _id: new ObjectId(this.userId) },
+      {
+        $set: {
+          authorApplicationStatus: AuthorApplicationStatus.PENDING,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    // Tạo application record
+    await this.database
+      .collection(Constant.AUTHOR_APPLICATION_COLLECTION)
+      .insertOne({
+        user: new ObjectId(this.userId),
+        status: AuthorApplicationStatus.PENDING,
+        applicationDate: new Date(),
+        notes: notes,
+      });
+  }
+
+  public async cancelAuthorApplication() {
+    await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .updateOne(
+        { _id: new ObjectId(this.userId) },
+        { $unset: { authorApplicationStatus: 1 } }
+      );
+
+    await this.database
+      .collection(Constant.AUTHOR_APPLICATION_COLLECTION)
+      .deleteOne({ user: new ObjectId(this.userId) });
   }
 }

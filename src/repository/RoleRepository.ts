@@ -67,7 +67,10 @@ export class RoleRepository {
   async getAllRoles(
     query?: RoleQuery
   ): Promise<{ roles: Role[]; total: number }> {
-    if (!(await this.authService.hasPermission(Resource.ROLE, Action.READ))) {
+    if (
+      !(await this.authService.hasPermission(Resource.ROLE, Action.READ)) &&
+      !(await this.authService.hasPermission(Resource.USER, Action.READ))
+    ) {
       throw new ForbiddenError("You don't have permission to read roles");
     }
 

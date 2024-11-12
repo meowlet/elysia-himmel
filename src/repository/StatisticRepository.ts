@@ -39,7 +39,7 @@ export class StatisticRepository {
 
   private async checkPermission() {
     const hasPermission = await this.authService.hasPermission(
-      Resource.PERMISSION,
+      Resource.STATISTIC,
       Action.READ
     );
     if (!hasPermission) {

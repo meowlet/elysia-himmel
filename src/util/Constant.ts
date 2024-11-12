@@ -45,4 +45,5 @@ export class Constant {
   // Google secret key
   static readonly GOOGLE_CLIENT_ID = Bun.env.GOOGLE_CLIENT_ID || "";
   static readonly GOOGLE_CLIENT_SECRET = Bun.env.GOOGLE_CLIENT_SECRET || "";
+  static readonly AUTHOR_APPLICATION_COLLECTION = "author_applications";
 }

@@ -39,4 +39,13 @@ export const MeModel = new Elysia().model({
       error: "Invalid duration",
     }),
   }),
+  ApplyAuthorBody: t.Object({
+    notes: t.Optional(
+      t.String({
+        minLength: 1,
+        maxLength: 1000,
+        error: "Notes must be between 1-1000 characters",
+      })
+    ),
+  }),
 });

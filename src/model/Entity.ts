@@ -64,6 +64,13 @@ interface User {
   bio?: string;
 }
 
+interface AuthorApplication {
+  user: string | ObjectId; // Reference to User._id
+  status: AuthorApplicationStatus;
+  applicationDate: Date;
+  notes?: string;
+}
+
 interface ReadingHistory {
   chapter: string | ObjectId; // Reference to Chapter._id
   lastReadPage: number;

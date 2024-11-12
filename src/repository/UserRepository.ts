@@ -1,5 +1,9 @@
 import { Db, ObjectId } from "mongodb";
-import { AuthorApplicationStatus, User } from "../model/Entity";
+import {
+  AuthorApplication,
+  AuthorApplicationStatus,
+  User,
+} from "../model/Entity";
 import { Constant } from "../util/Constant";
 import { database } from "../database/Database";
 import { AuthService } from "../service/AuthService";
@@ -200,5 +204,31 @@ export class UserRepository {
     if (!result) throw new Error("Failed to update user");
 
     return result;
+  }
+
+  public async getAuthorApplication() {
+    return await this.database
+      .collection<AuthorApplication>(Constant.AUTHOR_APPLICATION_COLLECTION)
+      .find()
+      .toArray();
+  }
+
+  public async updateAuthorApplication(
+    applicationId: string,
+    updateData: Partial<AuthorApplication>
+  ) {
+    const authorApplication = await this.database
+      .collection<AuthorApplication>(Constant.AUTHOR_APPLICATION_COLLECTION)
+      .findOneAndUpdate(
+        { _id: new ObjectId(applicationId) },
+        { $set: updateData }
+      );
+
+    return await this.database
+      .collection<User>(Constant.USER_COLLECTION)
+      .updateOne(
+        { _id: new ObjectId(authorApplication?.user) },
+        { $set: { authorApplicationStatus: updateData.status } }
+      );
   }
 }
