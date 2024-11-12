@@ -19,7 +19,7 @@ export class AuthService {
         .collection<User>(Constant.USER_COLLECTION)
         .updateOne(
           { _id: new ObjectId(this.userId) },
-          { $set: { isPremium: false } }
+          { $set: { isPremium: false, premiumExpiryDate: undefined } }
         );
     }
 
