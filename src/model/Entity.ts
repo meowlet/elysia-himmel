@@ -121,6 +121,7 @@ interface Tag {
   code: string;
   description?: string;
   workCount: number;
+  isDeleted?: boolean;
 }
 
 interface Rating {
