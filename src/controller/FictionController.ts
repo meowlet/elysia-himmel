@@ -1,4 +1,4 @@
-import Elysia, { NotFoundError } from "elysia";
+import Elysia, { NotFoundError, t } from "elysia";
 import { AuthPlugin } from "../plugin/AuthPlugin";
 
 import { join } from "path";
@@ -24,6 +24,21 @@ export const FictionController = new Elysia()
     },
     {
       query: "QueryFictionParams",
+    }
+  )
+  .get(
+    "/random",
+    async ({ query, repository }) => {
+      const fictions = await repository.getRandomFictions(query.limit || 10);
+      return createSuccessResponse(
+        "Random fictions retrieved successfully",
+        fictions
+      );
+    },
+    {
+      query: t.Object({
+        limit: t.Optional(t.Number({ minimum: 1, maximum: 100 })),
+      }),
     }
   )
   .get(

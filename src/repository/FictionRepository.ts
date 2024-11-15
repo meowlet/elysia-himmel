@@ -8,6 +8,7 @@ import {
   Tag,
   User,
   Chapter,
+  AuthorApplicationStatus,
 } from "../model/Entity";
 import { AuthorizationError, ForbiddenError } from "../util/Error";
 import { AuthorizationErrorType } from "../util/Enum";
@@ -17,6 +18,7 @@ import { join } from "path";
 import sharp from "sharp";
 import { AuthService } from "../service/AuthService";
 import { Resource, Action } from "../util/Enum";
+import { TagRepository } from "./TagRepository";
 
 export enum SortField {
   TITLE = "title",
@@ -24,6 +26,7 @@ export enum SortField {
   UPDATED_AT = "updatedAt",
   VIEW_COUNT = "viewCount",
   AVERAGE_RATING = "averageRating",
+  FAVORITE_COUNT = "favoriteCount",
 }
 
 export enum SortOrder {
@@ -82,10 +85,16 @@ export class FictionRepository {
     fictionData: Partial<Fiction>,
     fictionCover?: File
   ): Promise<WithId<Fiction>> {
+    const currentUser = await this.getCurrentUser();
+
     if (
+      currentUser.authorApplicationStatus !==
+        AuthorApplicationStatus.APPROVED &&
       !(await this.authService.hasPermission(Resource.FICTION, Action.CREATE))
     ) {
-      throw new ForbiddenError("You don't have permission to create fictions");
+      throw new ForbiddenError(
+        "You must be an approved author or have permission to create fictions"
+      );
     }
 
     const newFiction: Fiction = {
@@ -129,6 +138,15 @@ export class FictionRepository {
       await this.storageService.saveFile(
         new File([jpegBuffer], "cover.jpeg", { type: "image/jpeg" }),
         path
+      );
+    }
+
+    if (newFiction.tags && newFiction.tags.length > 0) {
+      const tagRepository = new TagRepository(this.userId);
+      await Promise.all(
+        newFiction.tags.map((tagId) =>
+          tagRepository.updateTagWorkCount(new ObjectId(tagId), 1)
+        )
       );
     }
 
@@ -186,6 +204,8 @@ export class FictionRepository {
       sort["stats.viewCount"] = sortOrder === SortOrder.DESC ? -1 : 1;
     } else if (sortBy === SortField.AVERAGE_RATING) {
       sort["stats.averageRating"] = sortOrder === SortOrder.DESC ? -1 : 1;
+    } else if (sortBy === SortField.FAVORITE_COUNT) {
+      sort["stats.favoriteCount"] = sortOrder === SortOrder.DESC ? -1 : 1;
     } else {
       sort[sortBy] = sortOrder === SortOrder.DESC ? -1 : 1;
     }
@@ -222,8 +242,18 @@ export class FictionRepository {
         {
           $lookup: {
             from: Constant.TAG_COLLECTION,
-            localField: "tags",
-            foreignField: "_id",
+            let: { tagIds: "$tags" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $in: ["$_id", "$$tagIds"] },
+                  $or: [
+                    { isDeleted: { $exists: false } },
+                    { isDeleted: false },
+                  ],
+                },
+              },
+            ],
             as: "tags",
           },
         },
@@ -299,11 +329,34 @@ export class FictionRepository {
     }
 
     if (updateData.tags) {
-      for (const tag of updateData.tags) {
-        if (!(await this.doesTagExist(tag.toString()))) {
-          throw new Error(`This tag does not exist: ${tag}`);
-        }
-      }
+      const tagRepository = new TagRepository(this.userId);
+
+      // Tìm tags bị xóa để giảm workCount
+      const removedTags = fiction.tags.filter(
+        (oldTag) =>
+          !updateData.tags!.some(
+            (newTag) => newTag.toString() === oldTag.toString()
+          )
+      );
+
+      // Tìm tags mới để tăng workCount
+      const addedTags = updateData.tags.filter(
+        (newTag) =>
+          !fiction.tags.some(
+            (oldTag) => oldTag.toString() === newTag.toString()
+          )
+      );
+
+      // Cập nhật workCount
+      await Promise.all([
+        ...removedTags.map((tagId) =>
+          tagRepository.updateTagWorkCount(new ObjectId(tagId), -1)
+        ),
+        ...addedTags.map((tagId) =>
+          tagRepository.updateTagWorkCount(new ObjectId(tagId), 1)
+        ),
+      ]);
+
       updateData.tags = updateData.tags.map((tag) => new ObjectId(tag));
     }
 
@@ -341,6 +394,15 @@ export class FictionRepository {
     if (!hasPermission && !isOwner) {
       throw new ForbiddenError(
         "You don't have permission to delete this fiction"
+      );
+    }
+
+    if (fiction.tags && fiction.tags.length > 0) {
+      const tagRepository = new TagRepository(this.userId);
+      await Promise.all(
+        fiction.tags.map((tagId) =>
+          tagRepository.updateTagWorkCount(new ObjectId(tagId), -1)
+        )
       );
     }
 
@@ -398,7 +460,10 @@ export class FictionRepository {
       throw new NotFoundError("Fiction not found");
     }
 
-    if (fiction.author.toString() !== this.userId) {
+    if (
+      fiction.author.toString() !== this.userId &&
+      !(await this.authService.hasPermission(Resource.FICTION, Action.UPDATE))
+    ) {
       throw new ForbiddenError("You are not the author of this fiction");
     }
 
@@ -459,5 +524,56 @@ export class FictionRepository {
     }
 
     return !isFavorited;
+  }
+
+  async getRandomFictions(limit: number = 10) {
+    const fictions = await this.database
+      .collection<Fiction>(Constant.FICTION_COLLECTION)
+      .aggregate([
+        { $sample: { size: limit } },
+        {
+          $lookup: {
+            from: Constant.TAG_COLLECTION,
+            let: { tagIds: "$tags" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $in: ["$_id", "$$tagIds"] },
+                  $or: [
+                    { isDeleted: { $exists: false } },
+                    { isDeleted: false },
+                  ],
+                },
+              },
+            ],
+            as: "tags",
+          },
+        },
+        {
+          $lookup: {
+            from: Constant.USER_COLLECTION,
+            localField: "author",
+            foreignField: "_id",
+            as: "author",
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            description: 1,
+            author: { $first: "$author" },
+            tags: 1,
+            status: 1,
+            type: 1,
+            stats: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ])
+      .toArray();
+
+    return fictions;
   }
 }
