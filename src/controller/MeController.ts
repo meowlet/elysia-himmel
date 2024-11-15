@@ -36,6 +36,13 @@ export const MeController = new Elysia()
       isAdmin: isAdmin,
     });
   })
+  .get("/favorites", async ({ repository }) => {
+    const favorites = await repository.getFavoriteFictions();
+    return createSuccessResponse(
+      "Get favorite fictions successfully",
+      favorites
+    );
+  })
   .post("/sign-out", async ({ cookie, repository, user }) => {
     cookie.accessToken.remove();
     cookie.refreshToken.remove();
