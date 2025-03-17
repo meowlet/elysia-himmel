@@ -2,6 +2,7 @@ import { Db, ObjectId } from "mongodb";
 import {
   AuthorApplication,
   AuthorApplicationStatus,
+  Fiction,
   User,
 } from "../model/Entity";
 import { Constant } from "../util/Constant";
@@ -204,6 +205,68 @@ export class UserRepository {
     if (!result) throw new Error("Failed to update user");
 
     return result;
+  }
+
+  public async getFavoriteFictions(userId: string) {
+    const currentUser = await this.getUserById(userId);
+    if (!currentUser) {
+      throw new NotFoundError("User not found");
+    }
+
+    if (!currentUser.favorites || currentUser.favorites.length === 0) {
+      return [];
+    }
+
+    return await this.database
+      .collection<Fiction>(Constant.FICTION_COLLECTION)
+      .aggregate([
+        {
+          $match: {
+            _id: { $in: currentUser.favorites },
+          },
+        },
+        {
+          $lookup: {
+            from: Constant.TAG_COLLECTION,
+            let: { tagIds: "$tags" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $in: ["$_id", "$$tagIds"] },
+                  $or: [
+                    { isDeleted: { $exists: false } },
+                    { isDeleted: false },
+                  ],
+                },
+              },
+            ],
+            as: "tags",
+          },
+        },
+        {
+          $lookup: {
+            from: Constant.USER_COLLECTION,
+            localField: "author",
+            foreignField: "_id",
+            as: "author",
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            description: 1,
+            author: { $first: "$author" },
+            tags: 1,
+            status: 1,
+            type: 1,
+            stats: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ])
+      .toArray();
   }
 
   public async getAuthorApplication() {

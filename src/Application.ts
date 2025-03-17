@@ -9,9 +9,10 @@ import { ChapterController } from "./controller/ChapterController";
 import { InteractionController } from "./controller/InteractionController";
 import { RoleController } from "./controller/RoleController";
 import { StatisticController } from "./controller/StatisticController";
+import { GuestPremiumController } from "./controller/GuestPremiumController";
 
 export const Application = new Elysia()
-  .group("/me", (app) => app.use(MeController))
+  .group("/me", (app) => app.use(GuestPremiumController).use(MeController))
   .group("/fiction", (app) => app.use(FictionController))
   .group("/auth", (app) => app.use(AuthController))
   .group("/transaction", (app) => app.use(TransactionController))

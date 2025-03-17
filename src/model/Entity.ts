@@ -41,6 +41,7 @@ enum PaymentMethod {
 }
 export enum TransactionType {
   PREMIUM_SUBSCRIPTION = "premium_subscription",
+  GUEST_PREMIUM_SUBSCRIPTION = "guest_premium_subscription",
   AUTHOR_PAYOUT = "author_payout",
 }
 
@@ -206,6 +207,8 @@ interface Follow {
 interface Transaction {
   requestId: string;
   user: string | ObjectId;
+  //userDetails is any
+  userDetails: any;
   amount: number;
   type: TransactionType;
   orderInfo: string;

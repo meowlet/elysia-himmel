@@ -7,6 +7,7 @@ import { ErrorPlugin } from "./plugin/ErrorPlugin";
 import { AuthorizationError, ConflictError } from "./util/Error";
 import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
+import { GuestPremiumController } from "./controller/GuestPremiumController";
 
 const app = new Elysia()
   .use(cors())

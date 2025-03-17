@@ -15,6 +15,19 @@ export const TransactionController = new Elysia()
   .get(
     "/",
     async ({ query, repository }) => {
+      const transactions = await repository.getAllTransactionsByQuery(query);
+      return createSuccessResponse(
+        "Lấy danh sách giao dịch thành công",
+        transactions
+      );
+    },
+    {
+      query: "QueryTransactionParams",
+    }
+  )
+  .get(
+    "/me",
+    async ({ repository, query }) => {
       const transactions = await repository.getUserTransactions(query);
       return createSuccessResponse(
         "Lấy danh sách giao dịch thành công",

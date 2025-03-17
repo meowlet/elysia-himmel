@@ -38,6 +38,16 @@ export const UserController = new Elysia()
     const user = await repository.getUserById(params.userId);
     return createSuccessResponse("Get user successfully", user);
   })
+
+  .get("/:userId/favorites", async ({ repository, params }) => {
+    const favoriteFictions = await repository.getFavoriteFictions(
+      params.userId
+    );
+    return createSuccessResponse(
+      "Get favorite fictions successfully",
+      favoriteFictions
+    );
+  })
   .use(AuthPlugin)
   .derive(({ userId }) => {
     return {

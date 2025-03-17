@@ -3,6 +3,7 @@ import { AuthService } from "../service/AuthService";
 import {
   AuthorApplicationStatus,
   Fiction,
+  PaymentStatus,
   TransactionType,
   User,
 } from "../model/Entity";
@@ -17,6 +18,8 @@ import { ValidationError } from "elysia";
 import { PremiumDuration } from "../model/MeModel";
 import { PaymentService, PremiumOrderInfo } from "../service/PaymentService";
 import sharp from "sharp";
+import { calculatePremiumExpiryDate } from "../util/DateHelper";
+import { GuestTokenRepository } from "./GuestTokenRepository";
 
 export class MeRepository {
   private database: Db;
@@ -31,6 +34,101 @@ export class MeRepository {
     this.paymentService = new PaymentService();
     this.storageService = new StorageService();
     this.emailService = new EmailService();
+  }
+
+  async handleGuestPremiumPayment(orderId: string) {
+    // Update transaction status
+    await this.paymentService.updateTransactionStatus(
+      orderId,
+      PaymentStatus.SUCCESS
+    );
+
+    // Get transaction details
+    const transaction = await this.database
+      .collection(Constant.TRANSACTION_COLLECTION)
+      .findOne({ orderId });
+
+    if (
+      !transaction ||
+      transaction.type !== TransactionType.GUEST_PREMIUM_SUBSCRIPTION
+    ) {
+      throw new Error("Invalid transaction");
+    }
+
+    // Calculate premium expiry date
+    const expiryDate = calculatePremiumExpiryDate(transaction.premiumDuration);
+
+    // Create guest token
+    const guestTokenRepository = new GuestTokenRepository();
+    const token = await guestTokenRepository.createGuestToken(expiryDate);
+
+    // If email provided, send token
+    if (transaction.email) {
+      this.emailService.sendMail({
+        from: "Himmel <noreply@meowsica.me>",
+        to: transaction.email,
+        subject: "Your Premium Access Token",
+        text: `Thank you for purchasing premium access! Your access token is: ${token}. You can use this token to access premium content until ${expiryDate.toLocaleString()}.`,
+        html: `<p>Thank you for purchasing premium access!</p><p>Your access token is: <strong>${token}</strong></p><p>You can use this token to access premium content until ${expiryDate.toLocaleString()}.</p><p>To use your token, visit: <a href="${
+          Constant.FE_URL
+        }/premium/access?token=${token}">${
+          Constant.FE_URL
+        }/premium/access?token=${token}</a></p>`,
+      });
+    }
+
+    // Return token in response
+    return { token, expiryDate };
+  }
+
+  // Get payment URL for guest premium subscription
+  async getGuestPaymentUrl(duration: PremiumDuration, email?: string) {
+    const amount = this.getPremiumAmount(duration);
+
+    if (email) {
+      const user = await database
+        .collection(Constant.GUEST_TOKEN_COLLECTION)
+        .findOne({ email: email });
+      if (user) {
+        throw new Error(
+          "This user already has an email address, if this is yours, please log in to use it."
+        );
+      }
+    }
+
+    const humanReadableDuration = {
+      [PremiumDuration.ONE_MONTH]: "1 month",
+      [PremiumDuration.THREE_MONTH]: "3 months",
+      [PremiumDuration.SIX_MONTH]: "6 months",
+      [PremiumDuration.ONE_YEAR]: "1 year",
+    };
+
+    const orderInfo = {
+      userId: "guest",
+      message: `Guest purchase ${humanReadableDuration[duration]} premium plan`,
+      duration,
+      type: TransactionType.GUEST_PREMIUM_SUBSCRIPTION,
+      email,
+    };
+
+    const paymentUrl = await this.paymentService.createGuestPremiumPayment(
+      amount,
+      orderInfo,
+      {
+        lang: "en",
+      },
+      [
+        {
+          name: `${humanReadableDuration[duration]} premium subscription`,
+          quantity: 1,
+          price: Number(amount),
+          currency: Constant.PAYMENT_CURRENCY,
+          totalPrice: Number(amount),
+        },
+      ]
+    );
+
+    return paymentUrl;
   }
 
   public async getPaymentUrl(duration: PremiumDuration): Promise<string> {

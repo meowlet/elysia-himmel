@@ -7,7 +7,8 @@ export class Constant {
   static readonly BE_URL = "http://localhost:3000"; // URL for the backend
   static readonly FE_URL = "http://localhost:3001"; // URL for the frontend
   static readonly MOMO_ENDPOINT = "https://test-payment.momo.vn/v2/gateway/api"; // URL for MoMo API
-  static readonly MOMO_IPN_URL = "http://13.250.45.9:3002/momo-payment-process"; // URL for MoMo IPN
+  static readonly MOMO_IPN_URL =
+    "http://54.255.240.72:4002/momo-payment-process"; // URL for MoMo IPN
   static readonly MOMO_REDIRECT_URL =
     "https://test-payment.momo.vn/v2/gateway/api/confirm-payment"; // URL for MoMo redirect
 
@@ -32,6 +33,7 @@ export class Constant {
   static readonly CHAPTER_COLLECTION = "chapters"; // Collection for chapter data
   static readonly RATING_COLLECTION = "ratings"; // Collection for rating data
   static readonly ROLE_COLLECTION = "roles"; // Collection for role data
+  static readonly AUTHOR_APPLICATION_COLLECTION = "author_applications";
 
   // Payment configuration
   static readonly PAYMENT_CURRENCY = "VND"; // Currency for payment
@@ -45,5 +47,13 @@ export class Constant {
   // Google secret key
   static readonly GOOGLE_CLIENT_ID = Bun.env.GOOGLE_CLIENT_ID || "";
   static readonly GOOGLE_CLIENT_SECRET = Bun.env.GOOGLE_CLIENT_SECRET || "";
-  static readonly AUTHOR_APPLICATION_COLLECTION = "author_applications";
+
+  // Add these new constants
+  static readonly GUEST_TOKEN_COLLECTION = "guest_tokens";
+  static readonly MOMO_GUEST_REDIRECT_URL = `${
+    Bun.env.FE_URL || "http://localhost:3000"
+  }/premium/guest/success`;
+  static readonly MOMO_GUEST_IPN_URL = `${
+    Bun.env.API_URL || "http://localhost:8080"
+  }/api/webhook/guest-premium`;
 }

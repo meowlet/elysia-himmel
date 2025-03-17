@@ -35,6 +35,11 @@ interface AuthorPayoutOrderInfo extends OrderInfo {
   authorId: string;
 }
 
+export interface GuestPremiumOrderInfo extends OrderInfo {
+  duration: PremiumDuration;
+  email?: string; // Optional email for receipt
+}
+
 export class PaymentService {
   private database = database;
 
@@ -72,6 +77,41 @@ export class PaymentService {
 
     const payUrl = await this.sendMoMoRequest(requestBody);
     await this.saveTransaction(orderId, requestId, amount, orderInfo);
+    return payUrl;
+  }
+
+  async createGuestPremiumPayment(
+    amount: string,
+    orderInfo: GuestPremiumOrderInfo,
+    options: {
+      redirectUrl?: string;
+      ipnUrl?: string;
+      lang?: string;
+    } = {},
+    paymentItems: PaymentItem[] = []
+  ): Promise<string> {
+    const orderId = new ObjectId().toString();
+    const requestId = new ObjectId().toString();
+
+    const {
+      redirectUrl = Constant.MOMO_GUEST_REDIRECT_URL,
+      ipnUrl = Constant.MOMO_IPN_URL,
+      lang = "en",
+    } = options;
+
+    const requestBody = this.createMoMoRequestBody({
+      amount,
+      orderId,
+      requestId,
+      redirectUrl,
+      ipnUrl,
+      orderInfo: orderInfo.message,
+      items: paymentItems,
+      lang,
+    });
+
+    const payUrl = await this.sendMoMoRequest(requestBody);
+    await this.saveGuestTransaction(orderId, requestId, amount, orderInfo);
     return payUrl;
   }
 
@@ -154,6 +194,8 @@ export class PaymentService {
     });
     const responseData = await response.json();
 
+    console.log(responseData);
+
     if (responseData.payUrl) {
       return responseData.payUrl;
     }
@@ -176,6 +218,26 @@ export class PaymentService {
       orderId,
       premiumDuration: (orderInfo as PremiumOrderInfo)?.duration,
       authorId: (orderInfo as AuthorPayoutOrderInfo)?.authorId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+  private async saveGuestTransaction(
+    orderId: string,
+    requestId: string,
+    amount: string,
+    orderInfo: GuestPremiumOrderInfo
+  ): Promise<void> {
+    await this.database.collection(Constant.TRANSACTION_COLLECTION).insertOne({
+      amount,
+      requestId,
+      type: TransactionType.GUEST_PREMIUM_SUBSCRIPTION,
+      orderInfo: orderInfo.message,
+      status: PaymentStatus.PENDING,
+      orderId,
+      premiumDuration: orderInfo.duration,
+      email: orderInfo.email,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

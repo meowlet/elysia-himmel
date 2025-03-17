@@ -16,6 +16,8 @@ export const TransactionModel = new Elysia().model({
         error: "Sort by must be amount or createdAt",
       })
     ),
+    from: t.Optional(t.Nullable(t.Date())),
+    to: t.Optional(t.Nullable(t.Date())),
     page: t.Optional(
       t.Number({ minimum: 1, error: "Page must be greater than 0" })
     ),
