@@ -7,14 +7,18 @@ import { AuthService } from "../service/AuthService";
 import { Action, Resource } from "../util/Enum";
 import { ForbiddenError } from "../util/Error";
 import { QueryTagParams } from "../model/Query";
+import { TagFlyweightFactory } from "../util/TagFlyweight";
+import { ArrayTagIterator, TagIterator } from "../util/iterator/TagIterator";
 
 export class TagRepository {
   private database: Db;
   private authService: AuthService;
+  private tagFlyweight: TagFlyweightFactory;
 
   constructor(private userId: string) {
     this.database = database;
     this.authService = new AuthService(this.database, this.userId);
+    this.tagFlyweight = TagFlyweightFactory.getInstance();
   }
 
   async getAllTags(params?: QueryTagParams): Promise<{
@@ -65,9 +69,7 @@ export class TagRepository {
     tag: Tag;
     fictions: Fiction[];
   }> {
-    const tag = await this.database
-      .collection<Tag>(Constant.TAG_COLLECTION)
-      .findOne({ code: tagCode, isDeleted: { $ne: true } });
+    const tag = await this.tagFlyweight.getTagByCode(tagCode);
 
     if (!tag) {
       throw new NotFoundError("Tag not found");
@@ -75,7 +77,7 @@ export class TagRepository {
 
     const fictions = await this.database
       .collection<Fiction>(Constant.FICTION_COLLECTION)
-      .find({ tags: tag._id })
+      .find({ tags: (tag as any)._id })
       .toArray();
 
     return { tag, fictions };
@@ -90,16 +92,11 @@ export class TagRepository {
       throw new ForbiddenError("You don't have permission to create tags");
     }
 
-    // Kiểm tra trùng lặp code
-    const existingTag = await this.database
-      .collection<Tag>(Constant.TAG_COLLECTION)
-      .findOne({
-        code: tagData.code,
-        isDeleted: { $ne: true },
-      });
-
-    if (existingTag) {
-      throw new Error("Tag code already exists");
+    if (tagData.code) {
+      const existingTag = await this.tagFlyweight.getTagByCode(tagData.code);
+      if (existingTag) {
+        throw new Error("Tag code already exists");
+      }
     }
 
     const newTag: Tag = {
@@ -119,6 +116,8 @@ export class TagRepository {
       throw new Error("Failed to create tag");
     }
 
+    this.tagFlyweight.updateTag(newTag);
+
     return newTag;
   }
 
@@ -131,25 +130,15 @@ export class TagRepository {
       throw new ForbiddenError("You don't have permission to update tags");
     }
 
-    // Kiểm tra tag tồn tại
-    const existingTag = await this.database
-      .collection<Tag>(Constant.TAG_COLLECTION)
-      .findOne({ _id: new ObjectId(tagId), isDeleted: { $ne: true } });
-
+    const existingTag = await this.tagFlyweight.getTag(tagId);
     if (!existingTag) {
       throw new NotFoundError("Tag not found");
     }
 
-    // Kiểm tra code trùng lặp nếu cập nhật code
-    if (updateData.code) {
-      const duplicateTag = await this.database
-        .collection<Tag>(Constant.TAG_COLLECTION)
-        .findOne({
-          code: updateData.code,
-          _id: { $ne: new ObjectId(tagId) },
-          isDeleted: { $ne: true },
-        });
-
+    if (updateData.code && updateData.code !== existingTag.code) {
+      const duplicateTag = await this.tagFlyweight.getTagByCode(
+        updateData.code
+      );
       if (duplicateTag) {
         throw new Error("Tag code already exists");
       }
@@ -171,6 +160,8 @@ export class TagRepository {
     if (!result) {
       throw new NotFoundError("Tag not found");
     }
+
+    this.tagFlyweight.updateTag(result);
 
     return result;
   }
@@ -199,11 +190,54 @@ export class TagRepository {
     if (result.matchedCount === 0) {
       throw new NotFoundError("Tag not found");
     }
+
+    this.tagFlyweight.removeTag(tagId);
   }
 
-  async updateTagWorkCount(tagId: ObjectId, increment: number) {
-    await this.database
+  async updateTagWorkCount(tagId: ObjectId | string[], increment: number) {
+    if (Array.isArray(tagId)) {
+      for (const id of tagId) {
+        await this.updateSingleTagWorkCount(id, increment);
+      }
+    } else {
+      await this.updateSingleTagWorkCount(tagId, increment);
+    }
+  }
+
+  private async updateSingleTagWorkCount(
+    tagId: ObjectId | string,
+    increment: number
+  ) {
+    const result = await this.database
       .collection<Tag>(Constant.TAG_COLLECTION)
-      .updateOne({ _id: tagId }, { $inc: { workCount: increment } });
+      .findOneAndUpdate(
+        { _id: typeof tagId === "string" ? new ObjectId(tagId) : tagId },
+        { $inc: { workCount: increment } },
+        { returnDocument: "after" }
+      );
+
+    if (result) {
+      this.tagFlyweight.updateTag(result);
+    }
+  }
+
+  async createTagIterator(params?: QueryTagParams): Promise<TagIterator> {
+    const { tags } = await this.getAllTags(params);
+    return new ArrayTagIterator(tags);
+  }
+
+  async createFictionTagIterator(fictionId: string): Promise<TagIterator> {
+    const fiction = await this.database
+      .collection<Fiction>(Constant.FICTION_COLLECTION)
+      .findOne({ _id: new ObjectId(fictionId) });
+
+    if (!fiction) {
+      throw new NotFoundError("Fiction not found");
+    }
+
+    const tagIds = fiction.tags || [];
+    const tags = await this.tagFlyweight.getTagsByIds(tagIds);
+
+    return new ArrayTagIterator(tags);
   }
 }

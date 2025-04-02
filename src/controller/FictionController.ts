@@ -4,16 +4,18 @@ import { AuthPlugin } from "../plugin/AuthPlugin";
 import { join } from "path";
 import { createErrorResponse, createSuccessResponse } from "../model/Response";
 import { FictionModel } from "../model/FictionModel";
-import { FictionRepository } from "../repository/FictionRepository";
+import { FictionRepositoryProxy } from "../repository/FictionRepositoryProxy";
 import { ChapterController } from "./ChapterController";
 import { ChapterModel } from "../model/ChapterModel";
+import { FictionType } from "../model/Entity";
+import { FictionPublisherFactory } from "../service/publishing/FictionPublisherFactory";
 
 export const FictionController = new Elysia()
   .use(FictionModel)
   .use(ChapterModel)
   .derive(async () => {
     return {
-      repository: new FictionRepository(""),
+      repository: new FictionRepositoryProxy(""),
     };
   })
   .get(
@@ -94,7 +96,7 @@ export const FictionController = new Elysia()
   .use(AuthPlugin)
   .derive(({ userId }) => {
     return {
-      repository: new FictionRepository(userId!),
+      repository: new FictionRepositoryProxy(userId!),
     };
   })
   .post(
@@ -168,5 +170,28 @@ export const FictionController = new Elysia()
     },
     {
       params: "FictionIdParams",
+    }
+  )
+  .post(
+    "/publish",
+    async ({ body, userId }) => {
+      const { cover, ...fictionData } = body;
+
+      // Get the appropriate publisher based on fiction type
+      const publisher = FictionPublisherFactory.getPublisher(
+        fictionData.type || FictionType.FREE,
+        userId!
+      );
+
+      // Use the template method to publish the fiction
+      const newFiction = await publisher.publishFiction(fictionData, cover);
+
+      return createSuccessResponse(
+        "Fiction published successfully",
+        newFiction
+      );
+    },
+    {
+      body: "CreateFictionBody",
     }
   );

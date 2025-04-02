@@ -7,12 +7,15 @@ import { AuthorizationErrorType, ConflictErrorType } from "../util/Enum";
 import EmailService from "../service/EmailService";
 import { randomBytes } from "crypto";
 import { database } from "../database/Database";
+import { PasswordManagementFacade } from "./PasswordManagementFacade";
 
 export class AuthRepository {
   private database: Db;
+  private passwordManagement: PasswordManagementFacade;
 
   constructor() {
     this.database = database;
+    this.passwordManagement = new PasswordManagementFacade();
   }
 
   public async signUp(
@@ -118,52 +121,14 @@ export class AuthRepository {
     currentPassword: string,
     newPassword: string
   ): Promise<void> {
-    const user = await this.database
-      .collection<User>(Constant.USER_COLLECTION)
-      .findOne({ _id: new ObjectId(userId) });
-
-    if (!user) {
-      throw new AuthorizationError(
-        "User not found",
-        AuthorizationErrorType.INVALID_TOKEN
-      );
-    }
-
-    const isPasswordCorrect = await Bun.password.verify(
+    await this.passwordManagement.changePassword(
+      userId,
       currentPassword,
-      user.passwordHash!
+      newPassword
     );
-
-    if (!isPasswordCorrect) {
-      throw new AuthorizationError(
-        "Current password is incorrect",
-        AuthorizationErrorType.INVALID_CREDENTIALS
-      );
-    }
-
-    const newPasswordHash = await Bun.password.hash(newPassword, {
-      algorithm: "bcrypt",
-      cost: Constant.SALT,
-    });
-
-    await this.database
-      .collection<User>(Constant.USER_COLLECTION)
-      .updateOne(
-        { _id: new ObjectId(userId) },
-        { $set: { passwordHash: newPasswordHash, updatedAt: new Date() } }
-      );
-
-    // Send email to user
-    new EmailService().sendMail({
-      from: "Meow <mercury.meowsica.me>",
-      to: user.email,
-      subject: "Password changed",
-      text: "Your password has been changed.",
-      html: "<p>Your password has been changed.</p>",
-    });
   }
 
-  public async createPasswordResetToken(email: string): Promise<void> {
+  public async createPasswordResetToken(email: string) {
     const user = await this.database
       .collection<User>(Constant.USER_COLLECTION)
       .findOne({ email: email });
@@ -176,7 +141,7 @@ export class AuthRepository {
     }
 
     const resetToken = randomBytes(32).toString("hex");
-    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+    const resetTokenExpiry = new Date(Date.now() + 3600000);
 
     const resetUrl = `${Constant.FE_URL}/reset-password/${resetToken}`;
 
@@ -197,6 +162,7 @@ export class AuthRepository {
       text: `To reset your password, click on this link: ${resetUrl}`,
       html: `<p>To reset your password, click on this link: <a href="${resetUrl}">${resetUrl}</a></p>`,
     });
+    return resetUrl;
   }
 
   public async resetPassword(
@@ -244,24 +210,20 @@ export class AuthRepository {
       .findOne({ googleId: googleId });
 
     if (user) {
-      // User already exists, return to sign in
       return { user, isNewUser: false };
     }
 
-    // Check if email already exists
     user = await this.database
       .collection<User>(Constant.USER_COLLECTION)
       .findOne({ email: email });
 
     if (user) {
-      // Email already exists, update googleId and return
       await this.database
         .collection<User>(Constant.USER_COLLECTION)
         .updateOne({ _id: user._id }, { $set: { googleId: googleId } });
       return { user: { ...user, googleId }, isNewUser: false };
     }
 
-    // Create new user
     const newUser: User = {
       googleId: googleId,
       email: email,
@@ -310,15 +272,3 @@ export class AuthRepository {
     );
   }
 }
-
-// async function hashPassword(password: string): Promise<string> {
-//   const salt = await bcrypt.genSalt(Constant.SALT);
-//   return bcrypt.hash(password, salt);
-// }
-
-// async function comparePassword(
-//   password: string,
-//   hash: string
-// ): Promise<boolean> {
-//   return bcrypt.compare(password, hash);
-// }

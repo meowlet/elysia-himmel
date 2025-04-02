@@ -19,6 +19,7 @@ import sharp from "sharp";
 import { AuthService } from "../service/AuthService";
 import { Resource, Action } from "../util/Enum";
 import { TagRepository } from "./TagRepository";
+import { FictionQueryBuilder } from "./FictionQueryBuilder";
 
 export enum SortField {
   TITLE = "title",
@@ -34,7 +35,7 @@ export enum SortOrder {
   DESC = "desc",
 }
 
-interface QueryFictionParams {
+export interface QueryFictionParams {
   query?: string;
   author?: string;
   tags?: string[];
@@ -50,7 +51,7 @@ interface QueryFictionParams {
   minRating?: number;
 }
 
-interface QueryFictionResult {
+export interface QueryFictionResult {
   fictions: Fiction[];
   total: number;
 }
@@ -131,29 +132,40 @@ export class FictionRepository {
     }
 
     if (fictionCover) {
-      const buffer = await fictionCover.arrayBuffer();
-      const jpegBuffer = await sharp(buffer).jpeg({ quality: 80 }).toBuffer();
-
-      const path = join("fictions", result.insertedId.toString(), "cover.jpeg");
-      await this.storageService.saveFile(
-        new File([jpegBuffer], "cover.jpeg", { type: "image/jpeg" }),
-        path
-      );
+      await this.saveFictionCover(result.insertedId.toString(), fictionCover);
     }
 
     if (newFiction.tags && newFiction.tags.length > 0) {
-      const tagRepository = new TagRepository(this.userId);
-      await Promise.all(
-        newFiction.tags.map((tagId) =>
-          tagRepository.updateTagWorkCount(new ObjectId(tagId), 1)
-        )
-      );
+      await this.updateTagsWorkCount(newFiction.tags as ObjectId[], 1);
     }
 
     return { ...newFiction, _id: result.insertedId };
   }
 
-  // check if the tag does exist in the tag collection
+  private async saveFictionCover(
+    fictionId: string,
+    cover: File
+  ): Promise<void> {
+    const buffer = await cover.arrayBuffer();
+    const jpegBuffer = await sharp(buffer).jpeg({ quality: 80 }).toBuffer();
+
+    const path = join("fictions", fictionId, "cover.jpeg");
+    await this.storageService.saveFile(
+      new File([jpegBuffer], "cover.jpeg", { type: "image/jpeg" }),
+      path
+    );
+  }
+
+  private async updateTagsWorkCount(
+    tags: ObjectId[],
+    delta: number
+  ): Promise<void> {
+    const tagRepository = new TagRepository(this.userId);
+    await Promise.all(
+      tags.map((tagId) => tagRepository.updateTagWorkCount(tagId, delta))
+    );
+  }
+
   async doesTagExist(tag: string): Promise<boolean> {
     const validTag = await this.database
       .collection<Tag>(Constant.TAG_COLLECTION)
@@ -162,67 +174,20 @@ export class FictionRepository {
   }
 
   async queryFictions(params: QueryFictionParams): Promise<QueryFictionResult> {
-    const {
-      query,
-      author,
-      tags,
-      status,
-      type,
-      createdFrom,
-      createdTo,
-      sortBy = SortField.CREATED_AT,
-      sortOrder = SortOrder.DESC,
-      page = 1,
-      limit = 12,
-      minViewCount,
-      minRating,
-    } = params;
-
-    const queryConditions: any = {};
-    if (query) {
-      queryConditions.$or = [
-        { title: { $regex: query, $options: "i" } },
-        { description: { $regex: query, $options: "i" } },
-      ];
-    }
-    if (author) queryConditions.author = new ObjectId(author);
-    if (tags && tags.length > 0)
-      queryConditions.tags = { $all: tags.map((tag) => new ObjectId(tag)) };
-    if (status) queryConditions.status = status;
-    if (type) queryConditions.type = type;
-    if (createdFrom || createdTo) {
-      queryConditions.createdAt = {};
-      if (createdFrom) queryConditions.createdAt.$gte = createdFrom;
-      if (createdTo) queryConditions.createdAt.$lte = createdTo;
-    }
-    if (minViewCount)
-      queryConditions["stats.viewCount"] = { $gte: minViewCount };
-    if (minRating) queryConditions["stats.averageRating"] = { $gte: minRating };
-
-    let sort: { [key: string]: 1 | -1 } = {};
-    if (sortBy === SortField.VIEW_COUNT) {
-      sort["stats.viewCount"] = sortOrder === SortOrder.DESC ? -1 : 1;
-    } else if (sortBy === SortField.AVERAGE_RATING) {
-      sort["stats.averageRating"] = sortOrder === SortOrder.DESC ? -1 : 1;
-    } else if (sortBy === SortField.FAVORITE_COUNT) {
-      sort["stats.favoriteCount"] = sortOrder === SortOrder.DESC ? -1 : 1;
-    } else {
-      sort[sortBy] = sortOrder === SortOrder.DESC ? -1 : 1;
-    }
-
-    const skip = (page - 1) * limit;
+    const queryBuilder = FictionQueryBuilder.fromQueryParams(params);
+    const { query, sort, skip, limit } = queryBuilder.build();
 
     const [fictions, total] = await Promise.all([
       this.database
         .collection<Fiction>(Constant.FICTION_COLLECTION)
-        .find(queryConditions)
+        .find(query)
         .sort(sort)
         .skip(skip)
         .limit(limit)
         .toArray(),
       this.database
         .collection<Fiction>(Constant.FICTION_COLLECTION)
-        .countDocuments(queryConditions),
+        .countDocuments(query),
     ]);
 
     return { fictions, total };
@@ -316,51 +281,23 @@ export class FictionRepository {
       throw new NotFoundError("Fiction not found");
     }
 
-    const hasPermission = await this.authService.hasPermission(
-      Resource.FICTION,
-      Action.UPDATE
-    );
-    const isOwner = fiction.author.toString() === this.userId;
-
-    if (!hasPermission && !isOwner) {
-      throw new ForbiddenError(
-        "You don't have permission to update this fiction"
-      );
-    }
+    await this.validateFictionAccess(fiction, Action.UPDATE);
 
     if (updateData.tags) {
-      const tagRepository = new TagRepository(this.userId);
-
-      // Tìm tags bị xóa để giảm workCount
-      const removedTags = fiction.tags.filter(
-        (oldTag) =>
-          !updateData.tags!.some(
-            (newTag) => newTag.toString() === oldTag.toString()
-          )
+      await this.handleTagsUpdate(
+        fiction.tags as ObjectId[],
+        updateData.tags as string[]
       );
-
-      // Tìm tags mới để tăng workCount
-      const addedTags = updateData.tags.filter(
-        (newTag) =>
-          !fiction.tags.some(
-            (oldTag) => oldTag.toString() === newTag.toString()
-          )
-      );
-
-      // Cập nhật workCount
-      await Promise.all([
-        ...removedTags.map((tagId) =>
-          tagRepository.updateTagWorkCount(new ObjectId(tagId), -1)
-        ),
-        ...addedTags.map((tagId) =>
-          tagRepository.updateTagWorkCount(new ObjectId(tagId), 1)
-        ),
-      ]);
-
       updateData.tags = updateData.tags.map((tag) => new ObjectId(tag));
     }
 
-    if (!hasPermission && updateData.type) {
+    if (
+      !(await this.authService.hasPermission(
+        Resource.FICTION,
+        Action.UPDATE
+      )) &&
+      updateData.type
+    ) {
       throw new ForbiddenError(
         "You don't have permission to update the type of the fiction"
       );
@@ -379,31 +316,60 @@ export class FictionRepository {
     return result;
   }
 
+  private async validateFictionAccess(
+    fiction: Fiction,
+    action: Action
+  ): Promise<void> {
+    const hasPermission = await this.authService.hasPermission(
+      Resource.FICTION,
+      action
+    );
+    const isOwner = fiction.author.toString() === this.userId;
+
+    if (!hasPermission && !isOwner) {
+      throw new ForbiddenError(
+        `You don't have permission to ${action.toLowerCase()} this fiction`
+      );
+    }
+  }
+
+  private async handleTagsUpdate(
+    oldTags: ObjectId[],
+    newTagsStr: string[]
+  ): Promise<void> {
+    const tagRepository = new TagRepository(this.userId);
+    const newTags = newTagsStr.map((tag) => new ObjectId(tag));
+
+    // Find tags to remove and add
+    const removedTags = oldTags.filter(
+      (oldTag) =>
+        !newTags.some((newTag) => newTag.toString() === oldTag.toString())
+    );
+
+    const addedTags = newTags.filter(
+      (newTag) =>
+        !oldTags.some((oldTag) => oldTag.toString() === newTag.toString())
+    );
+
+    // Update workCount for each tag
+    await Promise.all([
+      ...removedTags.map((tagId) =>
+        tagRepository.updateTagWorkCount(tagId, -1)
+      ),
+      ...addedTags.map((tagId) => tagRepository.updateTagWorkCount(tagId, 1)),
+    ]);
+  }
+
   async deleteFiction(fictionId: string): Promise<boolean> {
     const fiction = await this.getFictionById(fictionId);
     if (!fiction) {
       throw new NotFoundError("Fiction not found");
     }
 
-    const hasPermission = await this.authService.hasPermission(
-      Resource.FICTION,
-      Action.DELETE
-    );
-    const isOwner = fiction.author.toString() === this.userId;
-
-    if (!hasPermission && !isOwner) {
-      throw new ForbiddenError(
-        "You don't have permission to delete this fiction"
-      );
-    }
+    await this.validateFictionAccess(fiction, Action.DELETE);
 
     if (fiction.tags && fiction.tags.length > 0) {
-      const tagRepository = new TagRepository(this.userId);
-      await Promise.all(
-        fiction.tags.map((tagId) =>
-          tagRepository.updateTagWorkCount(new ObjectId(tagId), -1)
-        )
-      );
+      await this.updateTagsWorkCount(fiction.tags as ObjectId[], -1);
     }
 
     const result = await this.database
@@ -417,7 +383,7 @@ export class FictionRepository {
     return result.deletedCount === 1;
   }
 
-  async incrementViewCount(fictionId: string) {
+  async incrementViewCount(fictionId: string): Promise<boolean> {
     const result = await this.database
       .collection<Fiction>(Constant.FICTION_COLLECTION)
       .updateOne(
@@ -467,14 +433,9 @@ export class FictionRepository {
       throw new ForbiddenError("You are not the author of this fiction");
     }
 
-    const buffer = await cover.arrayBuffer();
-    const jpegBuffer = await sharp(buffer).jpeg({ quality: 80 }).toBuffer();
-
+    await this.saveFictionCover(fictionId, cover);
     const path = join("fictions", fictionId, "cover.jpeg");
-    return await this.storageService.saveFile(
-      new File([jpegBuffer], "cover.jpeg", { type: "image/jpeg" }),
-      path
-    );
+    return path;
   }
 
   async favoriteFiction(fictionId: string): Promise<boolean> {

@@ -3,9 +3,10 @@ import { ChapterModel } from "../model/ChapterModel";
 import { ChapterRepository } from "../repository/ChapterRepository";
 import { AuthPlugin } from "../plugin/AuthPlugin";
 import { createSuccessResponse } from "../model/Response";
-import { FictionType } from "../model/Entity";
+import { FictionType, User } from "../model/Entity";
 import { join } from "path";
 import { ForbiddenError } from "../util/Error";
+import { ChapterServiceFactory } from "../service/chapter/ChapterService";
 
 export const ChapterController = new Elysia()
   .use(ChapterModel)
@@ -65,28 +66,46 @@ export const ChapterController = new Elysia()
       params: "ChapterIdParams",
     }
   )
+  // Unified chapter page access using the decorator pattern
+  .get(
+    "/:fictionId/chapter/:chapterId/:pageIndex",
+    async ({ params, user, repository }) => {
+      // First get the fiction to determine if it's premium
+      const fiction = await repository.getFiction(params.fictionId);
+
+      // Create the appropriate service using the factory
+      const isPremium = fiction.type === FictionType.PREMIUM;
+      const chapterService = ChapterServiceFactory.createChapterService(
+        isPremium,
+        user as User
+      );
+
+      // Use the service to get the chapter page
+      const file = await chapterService.getChapterPage(
+        params.fictionId,
+        params.chapterId,
+        Number(params.pageIndex)
+      );
+
+      return file;
+    },
+    {
+      params: "ChapterPageParams",
+    }
+  )
+  // Keep the premium chapter endpoint for backward compatibility
   .get(
     "/:fictionId/premium-chapter/:chapterId/:pageIndex",
     async ({ params, user }) => {
-      const path = join(
-        "public",
-        "premium-fictions",
-        params.fictionId,
-        "chapters",
-        params.chapterId,
-        params.pageIndex + ".jpeg"
+      const chapterService = ChapterServiceFactory.createChapterService(
+        true,
+        user as User
       );
-      const file = Bun.file(path);
-
-      if (!(await file.exists())) {
-        throw new NotFoundError("Chapter page not found");
-      }
-
-      if (!user.isPremium) {
-        throw new ForbiddenError("You must be premium to access this chapter");
-      }
-
-      return file;
+      return await chapterService.getChapterPage(
+        params.fictionId,
+        params.chapterId,
+        Number(params.pageIndex)
+      );
     },
     {
       params: "ChapterPageParams",

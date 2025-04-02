@@ -11,6 +11,7 @@ import jwt from "@elysiajs/jwt";
 import { MeModel } from "../model/MeModel";
 import { ObjectId, WithId } from "mongodb";
 import { User } from "../model/Entity";
+import { PaymentMethod } from "../service/payment/PaymentFactory";
 
 export const MeController = new Elysia()
   .use(MeModel)
@@ -128,4 +129,19 @@ export const MeController = new Elysia()
       "Author application deleted successfully",
       null
     );
-  });
+  })
+  .post(
+    "/purchase-premium-vnpay",
+    async ({ user, repository, body }) => {
+      if (user.isPremium) {
+        throw new Error("You already have premium");
+      }
+      const paymentUrl = await repository.getVNPayPaymentUrl(body.duration);
+      return createSuccessResponse("Redirect to VNPAY payment", {
+        paymentUrl: paymentUrl,
+      });
+    },
+    {
+      body: "PurchasePremiumBody",
+    }
+  );

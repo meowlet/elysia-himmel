@@ -108,11 +108,13 @@ export const AuthController = new Elysia()
   .post(
     "/forgot-password",
     async ({ body, repository }) => {
-      await repository.createPasswordResetToken(body.email);
+      const url = await repository.createPasswordResetToken(body.email);
 
-      return createSuccessResponse<void>(
+      return createSuccessResponse<{ url: string }>(
         "Please check your email. It should be there in a few seconds.",
-        undefined
+        {
+          url: url,
+        }
       );
     },
     {
