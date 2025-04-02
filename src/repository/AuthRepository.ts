@@ -162,6 +162,7 @@ export class AuthRepository {
       text: `To reset your password, click on this link: ${resetUrl}`,
       html: `<p>To reset your password, click on this link: <a href="${resetUrl}">${resetUrl}</a></p>`,
     });
+
     return resetUrl;
   }
 

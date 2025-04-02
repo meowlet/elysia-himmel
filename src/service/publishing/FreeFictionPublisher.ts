@@ -19,7 +19,6 @@ export class FreeFictionPublisher extends FictionPublisher {
   protected async prepareFiction(
     fiction: Partial<Fiction>
   ): Promise<Partial<Fiction>> {
-    // Set specific properties for free fiction
     return {
       ...fiction,
       type: FictionType.FREE,
@@ -27,18 +26,13 @@ export class FreeFictionPublisher extends FictionPublisher {
     };
   }
 
-  // We're using the default implementation for createFiction
-
   protected async postProcess(fiction: Fiction): Promise<void> {
-    // For free fiction, maybe we want to add it to a "New Free Releases" list
     console.log(`Added "${fiction.title}" to new free releases list`);
   }
 
   protected async sendNotifications(fiction: Fiction): Promise<void> {
-    // Notify followers about new free fiction
     console.log(
       `Sending notification about new free fiction: ${fiction.title}`
     );
-    // In a real implementation, this would connect to a notification service
   }
 }

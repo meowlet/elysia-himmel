@@ -7,13 +7,10 @@ import {
 } from "./FictionRepository";
 import { WithId } from "mongodb";
 
-/**
- * A proxy for FictionRepository that adds caching capabilities
- */
 export class FictionRepositoryProxy {
   private repository: FictionRepository;
   private cache: Map<string, any>;
-  private cacheTTL: number = 1000 * 60 * 5; // 5 minutes
+  private cacheTTL: number = 1000 * 60 * 5;
   private cacheTimestamps: Map<string, number>;
 
   constructor(userId: string) {
@@ -36,7 +33,6 @@ export class FictionRepositoryProxy {
 
     if (!timestamp) return null;
 
-    // Check if cache has expired
     if (Date.now() - timestamp > this.cacheTTL) {
       this.cache.delete(key);
       this.cacheTimestamps.delete(key);
@@ -47,7 +43,6 @@ export class FictionRepositoryProxy {
   }
 
   private clearCacheForFiction(fictionId: string): void {
-    // Clear all cache entries containing this fiction ID
     for (const key of this.cache.keys()) {
       if (key.includes(fictionId)) {
         this.cache.delete(key);
@@ -57,7 +52,6 @@ export class FictionRepositoryProxy {
   }
 
   async getCurrentUser(): Promise<WithId<User>> {
-    // User data should always be fresh, not cached
     return this.repository.getCurrentUser();
   }
 
@@ -110,47 +104,40 @@ export class FictionRepositoryProxy {
     updateData: Partial<Fiction>
   ): Promise<Fiction | null> {
     const result = await this.repository.updateFiction(fictionId, updateData);
-    // Clear cache for this fiction
     this.clearCacheForFiction(fictionId);
     return result;
   }
 
   async deleteFiction(fictionId: string): Promise<boolean> {
     const result = await this.repository.deleteFiction(fictionId);
-    // Clear cache for this fiction
     this.clearCacheForFiction(fictionId);
     return result;
   }
 
   async incrementViewCount(fictionId: string): Promise<boolean> {
     const result = await this.repository.incrementViewCount(fictionId);
-    // Clear cache for this fiction since view count changed
     this.clearCacheForFiction(fictionId);
     return result;
   }
 
   async updateRating(fictionId: string, newRating: number): Promise<void> {
     await this.repository.updateRating(fictionId, newRating);
-    // Clear cache for this fiction since rating changed
     this.clearCacheForFiction(fictionId);
   }
 
   async uploadCover(fictionId: string, cover: File): Promise<string> {
     const result = await this.repository.uploadCover(fictionId, cover);
-    // Clear cache for this fiction since cover changed
     this.clearCacheForFiction(fictionId);
     return result;
   }
 
   async favoriteFiction(fictionId: string): Promise<boolean> {
     const result = await this.repository.favoriteFiction(fictionId);
-    // Clear cache for this fiction since favorite count changed
     this.clearCacheForFiction(fictionId);
     return result;
   }
 
   async getRandomFictions(limit: number = 10) {
-    // Random fictions should always be fresh, not cached
     return this.repository.getRandomFictions(limit);
   }
 }

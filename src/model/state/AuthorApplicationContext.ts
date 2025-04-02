@@ -18,7 +18,6 @@ export class AuthorApplicationContext {
     this.db = db;
     this.userId = userId;
 
-    // Set initial state based on user's current status
     switch (status) {
       case AuthorApplicationStatus.PENDING:
         this.state = new PendingApplicationState();
@@ -34,7 +33,6 @@ export class AuthorApplicationContext {
     }
   }
 
-  // Static factory method to create context from user ID
   public static async fromUserId(
     db: Db,
     userId: string
@@ -50,7 +48,6 @@ export class AuthorApplicationContext {
     );
   }
 
-  // State transition methods
   public async apply(notes?: string): Promise<void> {
     await this.state.apply(this.db, this.userId, notes);
     this.state = new PendingApplicationState();
@@ -71,7 +68,6 @@ export class AuthorApplicationContext {
     this.state = new RejectedApplicationState();
   }
 
-  // Get current status
   public getStatus(): AuthorApplicationStatus | null {
     return this.state.getStatus();
   }

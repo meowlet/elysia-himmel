@@ -2,7 +2,6 @@ import { Db, ObjectId } from "mongodb";
 import { AuthorApplicationStatus, User } from "../Entity";
 import { Constant } from "../../util/Constant";
 
-// State interface
 export interface AuthorApplicationState {
   apply(db: Db, userId: string, notes?: string): Promise<void>;
   cancel(db: Db, userId: string): Promise<void>;
@@ -16,10 +15,8 @@ export interface AuthorApplicationState {
   getStatus(): AuthorApplicationStatus | null;
 }
 
-// No Application State
 export class NoApplicationState implements AuthorApplicationState {
   async apply(db: Db, userId: string, notes?: string): Promise<void> {
-    // Update user status
     await db.collection<User>(Constant.USER_COLLECTION).updateOne(
       { _id: new ObjectId(userId) },
       {
@@ -30,7 +27,6 @@ export class NoApplicationState implements AuthorApplicationState {
       }
     );
 
-    // Create application record
     await db.collection(Constant.AUTHOR_APPLICATION_COLLECTION).insertOne({
       user: new ObjectId(userId),
       status: AuthorApplicationStatus.PENDING,
@@ -40,7 +36,6 @@ export class NoApplicationState implements AuthorApplicationState {
   }
 
   async cancel(db: Db, userId: string): Promise<void> {
-    // Nothing to cancel
     return Promise.resolve();
   }
 
@@ -62,7 +57,6 @@ export class NoApplicationState implements AuthorApplicationState {
   }
 }
 
-// Pending Application State
 export class PendingApplicationState implements AuthorApplicationState {
   async apply(db: Db, userId: string, notes?: string): Promise<void> {
     throw new Error("Application already pending");
@@ -84,7 +78,6 @@ export class PendingApplicationState implements AuthorApplicationState {
   async approve(db: Db, userId: string, adminId: string): Promise<void> {
     const now = new Date();
 
-    // Update user status
     await db.collection<User>(Constant.USER_COLLECTION).updateOne(
       { _id: new ObjectId(userId) },
       {
@@ -95,7 +88,6 @@ export class PendingApplicationState implements AuthorApplicationState {
       }
     );
 
-    // Update application record
     await db.collection(Constant.AUTHOR_APPLICATION_COLLECTION).updateOne(
       { user: new ObjectId(userId) },
       {
@@ -116,7 +108,6 @@ export class PendingApplicationState implements AuthorApplicationState {
   ): Promise<void> {
     const now = new Date();
 
-    // Update user status
     await db.collection<User>(Constant.USER_COLLECTION).updateOne(
       { _id: new ObjectId(userId) },
       {
@@ -127,7 +118,6 @@ export class PendingApplicationState implements AuthorApplicationState {
       }
     );
 
-    // Update application record
     await db.collection(Constant.AUTHOR_APPLICATION_COLLECTION).updateOne(
       { user: new ObjectId(userId) },
       {
@@ -146,7 +136,6 @@ export class PendingApplicationState implements AuthorApplicationState {
   }
 }
 
-// Approved Application State
 export class ApprovedApplicationState implements AuthorApplicationState {
   async apply(db: Db, userId: string, notes?: string): Promise<void> {
     throw new Error("Application already approved");
@@ -157,7 +146,6 @@ export class ApprovedApplicationState implements AuthorApplicationState {
   }
 
   async approve(db: Db, userId: string, adminId: string): Promise<void> {
-    // Already approved, do nothing
     return Promise.resolve();
   }
 
@@ -175,10 +163,8 @@ export class ApprovedApplicationState implements AuthorApplicationState {
   }
 }
 
-// Rejected Application State
 export class RejectedApplicationState implements AuthorApplicationState {
   async apply(db: Db, userId: string, notes?: string): Promise<void> {
-    // Allow reapplying after rejection
     const noApplicationState = new NoApplicationState();
     await noApplicationState.apply(db, userId, notes);
   }
@@ -206,7 +192,6 @@ export class RejectedApplicationState implements AuthorApplicationState {
     adminId: string,
     reason?: string
   ): Promise<void> {
-    // Already rejected, do nothing
     return Promise.resolve();
   }
 
