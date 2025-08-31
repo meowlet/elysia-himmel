@@ -16,7 +16,7 @@ export const ChapterModel = new Elysia().model({
     content: t.Array(
       t.File({
         type: ["image/jpeg", "image/png"],
-        maxSize: 1024 * 1024 * 5, // 5MB
+        maxSize: 1024 * 1024 * 100, // 5MB
         error:
           "The cover must be a valid image (JPEG or PNG) and less than 5MB",
       }),

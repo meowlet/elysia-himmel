@@ -19,7 +19,7 @@ export const FictionModel = new Elysia().model({
     cover: t.Optional(
       t.File({
         type: ["image/jpeg", "image/png"],
-        maxSize: 1024 * 1024 * 5,
+        maxSize: 1024 * 1024 * 100,
         error:
           "The cover must be a valid image (JPEG or PNG) and less than 5MB",
       })

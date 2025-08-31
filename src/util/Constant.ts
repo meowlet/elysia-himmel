@@ -1,16 +1,16 @@
 export class Constant {
   // Database configuration
-  static readonly DATABASE_PATH = "test"; // Path to the database
+  static readonly DATABASE_PATH = "himmel-new"; // Path to the database
 
   // Server configuration
   static readonly PORT = 3000; // Port for the backend server
   static readonly BE_URL = "http://localhost:3000"; // URL for the backend
-  static readonly FE_URL = "http://localhost:3001"; // URL for the frontend
+  static readonly FE_URL = "https://himmel.meowsica.me"; // URL for the frontend
   static readonly MOMO_ENDPOINT = "https://test-payment.momo.vn/v2/gateway/api"; // URL for MoMo API
   static readonly MOMO_IPN_URL =
     "http://54.255.240.72:4002/momo-payment-process"; // URL for MoMo IPN
   static readonly MOMO_REDIRECT_URL =
-    "https://test-payment.momo.vn/v2/gateway/api/confirm-payment"; // URL for MoMo redirect
+    "https://himmel.meowsica.me/payment/premium"; // URL for MoMo redirect
 
   // Security settings
   static readonly SALT = 8; // Salt rounds for bcrypt hashing
